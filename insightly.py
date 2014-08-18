@@ -1193,7 +1193,21 @@ class Insightly():
         orderby = orderby clause, e.g. orderby='DATE_UPDATED_UTC desc'
         filters = list of OData filter statements
         """
-        querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=filters)
+        querystring = ''
+        if domain is not None:
+            querystring += '?domain=' + urllib.quote_plus(domain)
+        if tag is not None:
+            if len(querystring) > 0:
+                querystring += '&tag=' + urllib.quote_plus(tag)
+            else:
+                querystring += '?tag=' + urllib.quote_plus(tag)
+        if ids is not None:
+            ids = string.replace(ids,' ','')
+            if len(querystring) > 0:
+                querystring += '?ids=' + ids
+            else:
+                querystring += '&ids=' + ids
+        querystring = self.ODataQuery(querystring, top=top, skip=skip, orderby=orderby, filters=filters)
         text = self.generateRequest('/v2.1/Organisations' + querystring, 'GET', '')
         return self.dictToList(json.loads(text))
         
