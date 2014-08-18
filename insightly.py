@@ -1481,10 +1481,15 @@ class Insightly():
     
     def addTaskComment(self, id, comment):
         """
-        Adds a comment to a task, not implemented yet.
+        Adds a comment to a task, the comment dictionary should have the following fields:
+        
+        COMMENT_ID = 0
+        BODY = comment text
+        OWNER_USER_ID = the comment author's Insightly user ID (numeric)
         """
-        pass
-    
+        json = json.dumps(comment)
+        text = self.generateRequest('/v2.1/Tasks/' + str(id) + '/Comments', 'POST', json)
+        return json.loads(text)
     #
     # Following are methods for managing team members
     #
