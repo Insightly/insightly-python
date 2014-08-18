@@ -1290,7 +1290,7 @@ class Insightly():
         """
         Gets a project category, identified by its unique record id
         """
-        text = self.generateRequest('/v2.1/ProjectCategories', 'GET', '')
+        text = self.generateRequest('/v2.1/ProjectCategories/' + str(id), 'GET', '')
         return json.loads(text)
     
     def addProjectCategory(self, category):
