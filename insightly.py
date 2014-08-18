@@ -1414,7 +1414,7 @@ class Insightly():
     # Following are methods related to tasks, and items attached to them
     #
     
-    def addTask(self, task, dummy=False):
+    def addTask(self, task):
         """
         Add/update a task on Insightly. Submit the task details as a dictionary.
         
