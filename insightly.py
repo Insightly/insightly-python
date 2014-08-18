@@ -1486,6 +1486,8 @@ class Insightly():
         COMMENT_ID = 0
         BODY = comment text
         OWNER_USER_ID = the comment author's Insightly user ID (numeric)
+        
+        NOTE: this function is not yet 100%, going over details of data expected with engineering.
         """
         json = json.dumps(comment)
         text = self.generateRequest('/v2.1/Tasks/' + str(id) + '/Comments', 'POST', json)
