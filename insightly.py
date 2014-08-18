@@ -1318,9 +1318,9 @@ class Insightly():
                 raise Exception('category must be a dictionary, or \'sample\' to request a sample object')
         else:
             if category.get('CATEGORY_ID', 0) > 0:
-                text = self.generateRequest('/v2.1/OpportunityCategories', 'PUT', json.dumps(category))
+                text = self.generateRequest('/v2.1/ProjectCategories', 'PUT', json.dumps(category))
             else:
-                text = self.generateRequest('/v2.1/OpportunityCategories', 'POST', json.dumps(category))
+                text = self.generateRequest('/v2.1/ProjectCategories', 'POST', json.dumps(category))
             return json.loads(text)
     
     def deleteProjectCategory(self, id):
