@@ -110,6 +110,18 @@ class Insightly():
     If you are working with large recordsets, we strongly recommend that you use ODATA functions, such as top and skip to page through
     recordsets rather than trying to fetch entire recordsets in one go. This both improves client/server communication, but also minimizes
     memory requirements on your end.
+    
+    TROUBLESHOOTING TIPS
+    
+    One of the main issues API users run into during write/update operations is a 400 error (bad request) due to missing required fields.
+    If you are unclear about what the server is expecting, a good way to troubleshoot this is to do the following:
+    
+    * Using the web interface, create the object in question (contact, project, team, etc), and add sample data and child elements to it
+    * Use the corresponding getNNNN() method to retrieve this object via the web API
+    * Inspect the object's contents and structure
+    
+    Read operations via the API are generally quite straightforward, so if you get struck on a write operation, this is a good workaround,
+    as you are probably just missing a required field or using an invalid element ID when referring to something such as a link to a contact.
     """
     def __init__(self, apikey=''):
 	"""
