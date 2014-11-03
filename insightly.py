@@ -130,6 +130,7 @@ class Insightly():
 
 	Raises an exception if login or call to getUsers() fails, most likely due to an invalid or missing API key
 	"""
+        self.alt_header = 'Basic '
         self.apikey = apikey
         self.baseurl = 'https://api.insight.ly'
         self.users = self.getUsers()
@@ -187,6 +188,14 @@ class Insightly():
             user_id = None
             print "FAIL: getUsers()"
             failed += 1
+        #
+        # getAccount
+        #
+        try:
+            accounts = self.getAccount()
+            print 'PASS: getAccount(), found ' + str(len(accounts)) + ' account linked to this API key.'
+        except:
+            print 'FAIL: getAccount()'
         #
         # getContacts
         try:
@@ -565,7 +574,7 @@ class Insightly():
 	    if u.get('EMAIL_ADDRESS','') == email:
 		return u
 	    
-    def generateRequest(self, url, method, data):
+    def generateRequest(self, url, method, data, alt_auth=None):
         """
         This method is used by other helper functions to generate HTTPS requests and parse
         server responses. This will minimize the amount of work developers need to do to
@@ -585,8 +594,11 @@ class Insightly():
         full_url = self.baseurl + url
         
         request = urllib2.Request(full_url)
-        base64string = base64.encodestring('%s:%s' % (self.apikey, '')).replace('\n', '')
-        request.add_header("Authorization", "Basic %s" % base64string)   
+        if alt_auth is not None:
+            request.add_header("Authorization", self.alt_header)
+        else:
+            base64string = base64.encodestring('%s:%s' % (self.apikey, '')).replace('\n', '')
+            request.add_header("Authorization", "Basic %s" % base64string)   
         request.get_method = lambda: method
         if method == 'PUT' or method == 'POST':
             request.add_header('Content-Type', 'application/json')
@@ -630,6 +642,16 @@ class Insightly():
             return querystring
         else:
             return ''
+        
+    def getAccount(self, email=None):
+        """
+        Find which account is associated with the current API key
+        """
+        if email is not None:
+            text = self.generateRequest('/v2.1/Accounts?email=' + email, 'GET','', alt_auth=self.alt_header)
+        else:
+            text = self.generateRequest('/v2.1/Accounts', 'GET', '')
+        return json.loads(text)
     
     def deleteComment(self, id):
         """
@@ -1512,8 +1534,8 @@ class Insightly():
         """
         Gets a list of team members, returns a list of dictionaries
         """
-        text = self.generateRequest('/v2.1/TeamMembers/teamid=' + str(id), 'GET', '')
-        return dictToList(json.loads(text))
+        text = self.generateRequest('/v2.1/TeamMembers?teamid=' + str(id), 'GET', '')
+        return json.loads(text)
     
     def getTeamMember(self, id):
         """
