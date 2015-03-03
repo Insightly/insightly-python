@@ -14,10 +14,10 @@ import urllib2
 
 class Insightly():
     """
-    Insightly Python library for Insightly API
+    Insightly Python library for Insightly API v2.2
     Brian McConnell <brian@insight.ly>
    
-    This library provides user friendly access to the version 2.1 REST API for Insightly. The library provides several services, including:
+    This library provides user friendly access to the version 2.2 REST API for Insightly. The library provides several services, including:
    
     * HTTPS request generation
     * Data type validation
@@ -25,7 +25,11 @@ class Insightly():
    
     The library is built using Python standard libraries (no third party tools required, so it will run out of the box on most Python
     environments, including Google App Engine). The wrapper functions return native Python objects, typically dictionaries, or lists of
-    dictionaries, so working with them is easily done using built in functions. 
+    dictionaries, so working with them is easily done using built in functions.
+    
+    The version 2.2 API adds several new endpoints which make it easy to make incremental changes to existing Insightly objects, such
+    as to add a phone number to a contact, and also more closely mirrors the functionality available in the web app (such as the
+    ability to follow and unfollow objects.s)
    
     USAGE:
    
