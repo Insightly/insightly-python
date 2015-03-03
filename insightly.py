@@ -714,12 +714,33 @@ class Insightly():
                 return json.loads(text)
             else:
                 raise Exception('contact must be a dictionary with valid contact data fields, or the string \'sample\' to request a sample object')
+            
+    def addContactAddress(self, contact_id, address):
+        """
+        Add/update an address linked to a contact in Insightly.
+        """
+        if type(address) is dict:
+            address_id = address.get('ADDRESS_ID', None)
+            if address_id is not None:
+                text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Addresses', 'PUT', json.dumps(address))
+            else:
+                text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Addresses', 'POST',json.dumps(address))
+                return json.loads(text)
+        else:
+            raise Exception('address must be a dictionary')
         
     def deleteContact(self, id):
         """
         Deletes a comment, identified by its record id
         """
         text = self.generateRequest('/v2.1/Contacts/' + str(id), 'DELETE', '')
+        return True
+    
+    def deleteContactAddress(self, contact_id, address_id):
+        """
+        Delete an address linked to a contact in Insightly.
+        """
+        text = self.generateRequest('/v2.2/Contacts/' + str(id) + '/Addresses/' + str(address_id), 'DELETE', '')
         return True
     
     def getContacts(self, ids=None, email=None, tag=None, filters=None, top=None, skip=None, orderby=None):
