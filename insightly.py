@@ -604,6 +604,7 @@ class Insightly():
             base64string = base64.encodestring('%s:%s' % (self.apikey, '')).replace('\n', '')
             request.add_header("Authorization", "Basic %s" % base64string)   
         request.get_method = lambda: method
+        # open the URL, if an error code is returned it should raise an exception
         if method == 'PUT' or method == 'POST':
             request.add_header('Content-Type', 'application/json')
             result = urllib2.urlopen(request, data)
@@ -720,14 +721,38 @@ class Insightly():
         Add/update an address linked to a contact in Insightly.
         """
         if type(address) is dict:
-            address_id = address.get('ADDRESS_ID', None)
-            if address_id is not None:
-                text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Addresses', 'PUT', json.dumps(address))
-            else:
-                text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Addresses', 'POST',json.dumps(address))
+            # validate data
+            at = string.lower(address.get('TYPE',''))
+            if at == 'work' or at == 'home' or at == 'postal' or at == 'other':
+                address_id = address.get('ADDRESS_ID', None)
+                if address_id is not None:
+                    text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Addresses', 'PUT', json.dumps(address))
+                else:
+                    text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Addresses', 'POST',json.dumps(address))
                 return json.loads(text)
+            else:
+                raise Exception('TYPE must be home, work, postal or other')
         else:
             raise Exception('address must be a dictionary')
+    
+    def addContactContactInfo(self, contact_id, contactinfo):
+        """
+        Add/update a contact info linked to a contact
+        """
+        if type(contactinfo) is dict:
+            # validate data
+            ct = string.lower(contactinfo.get('TYPE',''))
+            if ct == 'phone' or ct == 'email' or ct == 'pager' or ct == 'fax' or ct == 'website' or ct == 'other':
+                contact_info_id = contactinfo.get('CONTACT_INFO_ID', None)
+                if contact_info_id is not None:
+                    text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + 'ContactInfos', 'PUT', json.dumps(contactinfo))
+                else:
+                    text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + 'ContactInfos', 'PUT', json.dumps(contactinfo))
+                return json.loads(text)
+            else:
+                raise Exception('TYPE must be phone, email, pager, fax, website or other')
+        else:
+            raise Exception('contactinfo must be a dictionary')
         
     def deleteContact(self, id):
         """
@@ -741,6 +766,13 @@ class Insightly():
         Delete an address linked to a contact in Insightly.
         """
         text = self.generateRequest('/v2.2/Contacts/' + str(id) + '/Addresses/' + str(address_id), 'DELETE', '')
+        return True
+    
+    def deleteContactContactInfo(self, contact_id, contact_info_id):
+        """
+        Delete a contact info from a contact
+        """
+        text = self.generateRequest('/v2.2/Contacts/' + str(id) + '/ContactInfos/' + str(contact_info_id), 'DELETE', '')
         return True
     
     def getContacts(self, ids=None, email=None, tag=None, filters=None, top=None, skip=None, orderby=None):
