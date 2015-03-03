@@ -1,4 +1,7 @@
 #
+# NOTE: the version 2.2 API is NOT in production yet, use the v2.1 library in the default branch. We are making this branch available
+# for beta testers, but it is not ready for production use yet.
+#
 # NOTE to .NET developers, it is best if you edit this file in a Python aware IDE. Komodo IDE is a good choice. .NET tends to break
 # indentation in Python fields, which will cause bugs.
 #
@@ -747,12 +750,19 @@ class Insightly():
                 if contact_info_id is not None:
                     text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + 'ContactInfos', 'PUT', json.dumps(contactinfo))
                 else:
-                    text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + 'ContactInfos', 'PUT', json.dumps(contactinfo))
+                    text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + 'ContactInfos', 'POST', json.dumps(contactinfo))
                 return json.loads(text)
             else:
                 raise Exception('TYPE must be phone, email, pager, fax, website or other')
         else:
             raise Exception('contactinfo must be a dictionary')
+        
+    def addContactFollow(self, contact_id):
+        """
+        Start following a contact
+        """
+        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Follow', 'POST', '')
+        return True
         
     def deleteContact(self, id):
         """
@@ -773,6 +783,13 @@ class Insightly():
         Delete a contact info from a contact
         """
         text = self.generateRequest('/v2.2/Contacts/' + str(id) + '/ContactInfos/' + str(contact_info_id), 'DELETE', '')
+        return True
+    
+    def deleteContactFollow(self, contact_id):
+        """
+        Stop following a contact
+        """
+        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Follow', 'DELETE','')
         return True
     
     def getContacts(self, ids=None, email=None, tag=None, filters=None, top=None, skip=None, orderby=None):
@@ -829,7 +846,21 @@ class Insightly():
         """
         # Do lazy exception handling, returns True if all goes well, otherwise raises whatever exception caused the issue
         text = self.generateRequest('/v2.2/Contacts/' + str(id), 'GET','')
-        json.loads(text)
+        return json.loads(text)
+        
+    def getContactAddresses(self, id):
+        """
+        Get addresses linked to a contact
+        """
+        text = self.generateRequest('/v2.2/Contacts/' + str(id) + '/Addresses', 'GET', '')
+        return json.loads(text)
+    
+    def getContactContactInfos(self, id):
+        """
+        Get ContactInfos linked to a contact
+        """
+        text = self.generateRequest('/v2.2/Contacts/' + str(id) + '/ContactInfos', 'GET', '')
+        return json.loads(text)
         
     def getContactEmails(self, id):
         """
