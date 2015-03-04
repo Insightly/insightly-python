@@ -143,6 +143,8 @@ class Insightly():
             self.baseurl = 'https://api.insight.ly/' + version
             self.users = self.getUsers()
             self.version = version
+            self.tests_run = 0
+            self.tests_passed = 0
             print 'CONNECTED: found ' + str(len(self.users)) + ' users'
             for u in self.users:
                 if u.get('ACCOUNT_OWNER', False):
@@ -658,9 +660,15 @@ class Insightly():
         Find which account is associated with the current API key, this endpoint will most likely be renamed to Instance
         """
         if test:
-            text = self.generateRequest('/Accounts', 'GET', '')
-            accounts = json.loads(text)
-            print 'PASS getAccount() : Found ' + len(accounts) + ' linked to this instance'
+            try:
+                text = self.generateRequest('/Accounts', 'GET', '')
+                accounts = json.loads(text)
+                print 'PASS getAccount() : Found ' + len(accounts) + ' linked to this instance'
+                self.tests_run += 1
+                self.tests_passed += 1
+            except:
+                print 'FAIL getAccount()'
+                self.tests_run += 1
         else:
             if email is not None:
                 text = self.generateRequest('/Accounts?email=' + email, 'GET','', alt_auth=self.alt_header)
@@ -1826,7 +1834,7 @@ class Insightly():
         querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=filters)
         text = self.generateRequest('/Teams' + querystring, 'GET', '')
         return json.loads(text)
-    
+
     def getTeam(self, id):
         """
         Gets a team, returns a dictionary
@@ -1871,12 +1879,23 @@ class Insightly():
     # Following is a list of methods for accessing user information. These methods are read-only. 
     #
     
-    def getUsers(self):
+    def getUsers(self, test = True):
         """
         Gets a list of users for this account, returns a list of dictionaries
         """
-        text = self.generateRequest('/Users', 'GET', '')
-        return json.loads(text)
+        if test:
+            try:
+                text = self.generateRequest('/Users', 'GET', '')
+                users = json.loads(text)
+                print 'PASS: getUsers() : found ' + len(users)
+                self.tests_run += 1
+                self.tests_passed += 1
+            except:
+                print 'FAIL: getUsers()'
+                self.tests_run += 1
+        else:
+            text = self.generateRequest('/Users', 'GET', '')
+            return json.loads(text)
     
     def getUser(self, id):
         """
