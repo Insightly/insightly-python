@@ -653,7 +653,7 @@ class Insightly():
         
     def getAccount(self, email=None):
         """
-        Find which account is associated with the current API key
+        Find which account is associated with the current API key, this endpoint will most likely be renamed to Instance
         """
         if email is not None:
             text = self.generateRequest('/v2.2/Accounts?email=' + email, 'GET','', alt_auth=self.alt_header)
@@ -900,29 +900,29 @@ class Insightly():
         text = self.generateRequest('/v2.2/Contacts' + querystring, 'GET', '')
         return self.dictToList(json.loads(text))
     
-    def getContact(self, id):
+    def getContact(self, contact_id):
         """
         Gets a specific contact, identified by its record id
         """
         # Do lazy exception handling, returns True if all goes well, otherwise raises whatever exception caused the issue
-        text = self.generateRequest('/v2.2/Contacts/' + str(id), 'GET','')
+        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id), 'GET','')
         return json.loads(text)
         
-    def getContactAddresses(self, id):
+    def getContactAddresses(self, contact_id):
         """
         Get addresses linked to a contact
         """
-        text = self.generateRequest('/v2.2/Contacts/' + str(id) + '/Addresses', 'GET', '')
+        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Addresses', 'GET', '')
         return json.loads(text)
     
-    def getContactContactInfos(self, id):
+    def getContactContactInfos(self, contact_id):
         """
         Get ContactInfos linked to a contact
         """
-        text = self.generateRequest('/v2.2/Contacts/' + str(id) + '/ContactInfos', 'GET', '')
+        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/ContactInfos', 'GET', '')
         return json.loads(text)
         
-    def getContactEmails(self, id):
+    def getContactEmails(self, contact_id):
         """
         Gets emails for a contact, identified by its record locator, returns a list of dictionaries
         """
@@ -931,42 +931,42 @@ class Insightly():
         #
         # HTTP GET api.insight.ly/v2.2/Contacts/{id}/Emails
         #
-        text = self.generateRequest('/v2.2/Contacts/' + str(id) + '/Emails', 'GET', '')
+        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Emails', 'GET', '')
         return self.dictToList(json.loads(text))
     
-    def getContactEvents(self, id):
+    def getContactEvents(self, contact_id):
         """
         Gets events linked to a contact
         """
-        text = self.generateRequest('/v2.2/Contacts/' + str(id) + '/Events', 'GET', '')
+        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Events', 'GET', '')
         return self.dictToList(json.loads(text))
     
-    def getContactFileAttachments(self, id):
+    def getContactFileAttachments(self, contact_id):
         """
         Gets files attached to a contact
         """
-        text = self.generateRequest('/v2.2/Contacts/' + str(id) + '/FileAttachments', 'GET', '')
+        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/FileAttachments', 'GET', '')
         return self.dictToList(json.loads(text))
     
-    def getContactNotes(self, id):
+    def getContactNotes(self, contact_id):
         """
         Gets a list of the notes attached to a contact, identified by its record locator. Returns a list of dictionaries.
         """
-        text = self.generateRequest('/v2.2/Contacts/' + str(id) + '/Notes', 'GET', '')
+        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Notes', 'GET', '')
         return self.dictToList(json.loads(text))
     
-    def getContactTags(self, id):
+    def getContactTags(self, contact_id):
         """
         Gets a list of tags linked to a contact
         """
-        text = self.generateRequest('/v2.2/Contacts/' + str(id) + '/Tags', 'GET', '')
+        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Tags', 'GET', '')
         return self.dictToList(json.loads(text))
         
-    def getContactTasks(self, id):
+    def getContactTasks(self, contact_id):
         """
         Gets a list of the tasks attached to a contact, identified by its record locator. Returns a list of dictionaries.
         """
-        text = self.generateRequest('/v2.2/Contacts/' + str(id) + '/Tasks', 'GET', '')
+        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Tasks', 'GET', '')
         return self.dictToList(json.loads(text))
     
     def getCountries(self):
