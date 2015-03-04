@@ -142,6 +142,7 @@ class Insightly():
             self.apikey = apikey
             self.baseurl = 'https://api.insight.ly/' + version
             self.users = self.getUsers()
+            self.version = version
             print 'CONNECTED: found ' + str(len(self.users)) + ' users'
             for u in self.users:
                 if u.get('ACCOUNT_OWNER', False):
@@ -151,7 +152,7 @@ class Insightly():
                     print 'The account owner is ' + self.owner_name + ' [' + str(self.owner_id) + '] at ' + self.owner_email
                     break
         else:
-            raise Exception('Python library only supports v2.1 or v2.2 (default) APIs'
+            raise Exception('Python library only supports v2.1 or v2.2 (default) APIs')
                 
     def getMethods(self):
         """
@@ -726,6 +727,8 @@ class Insightly():
         """
         Add/update an address linked to a contact in Insightly.
         """
+        if self.version != '2.2':
+            raise Exception('method only supported for version 2.2 API')
         if type(address) is dict:
             # validate data
             at = string.lower(address.get('TYPE',''))
@@ -745,6 +748,8 @@ class Insightly():
         """
         Add/update a contact info linked to a contact
         """
+        if self.version != '2.2':
+            raise Exception('method only supported for v2.2 API')
         if type(contactinfo) is dict:
             # validate data
             ct = string.lower(contactinfo.get('TYPE',''))
@@ -764,6 +769,8 @@ class Insightly():
         """
         Add an event to a contact
         """
+        if self.version != '2.2':
+            raise Exception('method only supported for version 2.2 API')
         if type(event) is dict:
             event_id = event.get('EVENT_ID', None)
             if event_id is not None:
@@ -777,6 +784,8 @@ class Insightly():
         """
         Add/update a file attachment for a contact
         """
+        if self.version != '2.2':
+            raise Exception('method only supported for version 2.2 API')
         if type(file_attachment) is dict:
             file_attachment_id = file_attachment.get('FILE_ATTACHMENT_ID', None)
             if file_attachment_id is not None:
@@ -791,6 +800,8 @@ class Insightly():
         """
         Start following a contact
         """
+        if self.version != '2.2':
+            raise Exception('method only support for version 2.2 API')
         text = self.generateRequest('/Contacts/' + str(contact_id) + '/Follow', 'POST', '')
         return True
     
@@ -798,6 +809,8 @@ class Insightly():
         """
         Delete a tag(s) from a contact
         """
+        if self.version != '2.2':
+            raise Exception('method only supported for version 2.2 API')
         if type(tags) is list:
             pass
         elif type(tags) is str:
@@ -811,6 +824,8 @@ class Insightly():
         """
         Deletes a comment, identified by its record id
         """
+        if self.version != '2.2':
+            raise Exception('method only supported for version 2.2 API')
         text = self.generateRequest('/Contacts/' + str(contact_id), 'DELETE', '')
         return True
     
@@ -818,6 +833,8 @@ class Insightly():
         """
         Delete an address linked to a contact in Insightly.
         """
+        if self.version != '2.2':
+            raise Exception('method only supported for version 2.2 API')
         text = self.generateRequest('/Contacts/' + str(xcontact_id) + '/Addresses/' + str(address_id), 'DELETE', '')
         return True
     
@@ -825,6 +842,8 @@ class Insightly():
         """
         Delete a contact info from a contact
         """
+        if self.version != '2.2':
+            raise Exception('method only supported for version 2.2 API')
         text = self.generateRequest('/Contacts/' + str(contact_id) + '/ContactInfos/' + str(contact_info_id), 'DELETE', '')
         return True
     
@@ -832,6 +851,8 @@ class Insightly():
         """
         Delete an event from a contact
         """
+        if self.version != '2.2':
+            raise Exception('method only supported for version 2.2 API')
         text = self.generateRequest('/Contacts/' + str(contact_id) + '/Events/' + str(event_id), 'DELETE', '')
         return True
     
@@ -839,6 +860,8 @@ class Insightly():
         """
         Delete a file attachment from a contact
         """
+        if self.version != '2.2':
+            raise Exception('method only supported for version 2.2 API')
         text = self.generateRequest('/Contacts/' + str(contact_id) + '/FileAttachments/' + str(file_attachment_id), 'DELETE', '')
         return True
     
@@ -846,6 +869,8 @@ class Insightly():
         """
         Stop following a contact
         """
+        if self.version != '2.2':
+            raise Exception('method only supported for version 2.2 API')
         text = self.generateRequest('/Contacts/' + str(contact_id) + '/Follow', 'DELETE','')
         return True
     
@@ -853,6 +878,8 @@ class Insightly():
         """
         Delete tags from a contact
         """
+        if self.version != '2.2':
+            raise Exception('method only supported for version 2.2 API')
         pass
     
     def getContacts(self, ids=None, email=None, tag=None, filters=None, top=None, skip=None, orderby=None):
@@ -915,6 +942,8 @@ class Insightly():
         """
         Get addresses linked to a contact
         """
+        if self.version != '2.2':
+            raise Exception('method only supported for version 2.2 API')
         text = self.generateRequest('/Contacts/' + str(contact_id) + '/Addresses', 'GET', '')
         return json.loads(text)
     
@@ -922,6 +951,8 @@ class Insightly():
         """
         Get ContactInfos linked to a contact
         """
+        if self.version != '2.2':
+            raise Exception('method only supported for version 2.2 API')
         text = self.generateRequest('/Contacts/' + str(contact_id) + '/ContactInfos', 'GET', '')
         return json.loads(text)
         
@@ -934,6 +965,8 @@ class Insightly():
         #
         # HTTP GET api.insight.ly/v2.2/Contacts/{id}/Emails
         #
+        if self.version != '2.2':
+            raise Exception('method only supported for version 2.2 API')
         text = self.generateRequest('/Contacts/' + str(contact_id) + '/Emails', 'GET', '')
         return self.dictToList(json.loads(text))
     
@@ -941,6 +974,8 @@ class Insightly():
         """
         Gets events linked to a contact
         """
+        if self.version != '2.2':
+            raise Exception('method only supported for version 2.2 API')
         text = self.generateRequest('/Contacts/' + str(contact_id) + '/Events', 'GET', '')
         return self.dictToList(json.loads(text))
     
@@ -948,6 +983,8 @@ class Insightly():
         """
         Gets files attached to a contact
         """
+        if self.version != '2.2':
+            raise Exception('method only supported for version 2.2 API')
         text = self.generateRequest('/Contacts/' + str(contact_id) + '/FileAttachments', 'GET', '')
         return self.dictToList(json.loads(text))
     
@@ -955,6 +992,8 @@ class Insightly():
         """
         Gets a list of the notes attached to a contact, identified by its record locator. Returns a list of dictionaries.
         """
+        if self.version != '2.2':
+            raise Exception('method only supported for version 2.2 API')
         text = self.generateRequest('/Contacts/' + str(contact_id) + '/Notes', 'GET', '')
         return self.dictToList(json.loads(text))
     
@@ -962,6 +1001,8 @@ class Insightly():
         """
         Gets a list of tags linked to a contact
         """
+        if self.version != '2.2':
+            raise Exception('method only supported for version 2.2 API')
         text = self.generateRequest('/Contacts/' + str(contact_id) + '/Tags', 'GET', '')
         return self.dictToList(json.loads(text))
         
