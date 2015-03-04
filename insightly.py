@@ -757,33 +757,66 @@ class Insightly():
         else:
             raise Exception('contactinfo must be a dictionary')
         
+    def addContactEvent(self, contact_id, event):
+        """
+        Add an event to a contact
+        """
+        if type(event) is dict:
+            event_id = event.get('EVENT_ID', None)
+            if event_id is not None:
+                text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + 'ContactInfos', 'PUT', json.dumps(event))
+            else:
+                text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + 'ContactInfos', 'POST', json.dumps(event))
+        else:
+            raise Exception('event must be a dictionary')
+        
     def addContactFollow(self, contact_id):
         """
         Start following a contact
         """
         text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Follow', 'POST', '')
         return True
+    
+    def addContactTags(self, contact_id, tags):
+        """
+        Delete a tag(s) from a contact
+        """
+        if type(tags) is list:
+            pass
+        elif type(tags) is str:
+            tags = string.split(tags,',')
+        else:
+            raise Exception('tags must either be a string or a list of strings')
+        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Tags', 'POST', json.dumps(tags))
+        return json.loads(text)
         
-    def deleteContact(self, id):
+    def deleteContact(self, contact_id):
         """
         Deletes a comment, identified by its record id
         """
-        text = self.generateRequest('/v2.2/Contacts/' + str(id), 'DELETE', '')
+        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id), 'DELETE', '')
         return True
     
     def deleteContactAddress(self, contact_id, address_id):
         """
         Delete an address linked to a contact in Insightly.
         """
-        text = self.generateRequest('/v2.2/Contacts/' + str(id) + '/Addresses/' + str(address_id), 'DELETE', '')
+        text = self.generateRequest('/v2.2/Contacts/' + str(xcontact_id) + '/Addresses/' + str(address_id), 'DELETE', '')
         return True
     
     def deleteContactContactInfo(self, contact_id, contact_info_id):
         """
         Delete a contact info from a contact
         """
-        text = self.generateRequest('/v2.2/Contacts/' + str(id) + '/ContactInfos/' + str(contact_info_id), 'DELETE', '')
+        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/ContactInfos/' + str(contact_info_id), 'DELETE', '')
         return True
+    
+    def deleteContactEvent(self, contact_id, event_id):
+        """
+        Delete an event from a contact
+        """
+        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Events/' + str(event_id), 'DELETE', '')
+        return True        
     
     def deleteContactFollow(self, contact_id):
         """
@@ -791,6 +824,12 @@ class Insightly():
         """
         text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Follow', 'DELETE','')
         return True
+    
+    def deleteContactTags(self, contact_id, tag):
+        """
+        Delete tags from a contact
+        """
+        pass
     
     def getContacts(self, ids=None, email=None, tag=None, filters=None, top=None, skip=None, orderby=None):
         """
@@ -874,11 +913,26 @@ class Insightly():
         text = self.generateRequest('/v2.2/Contacts/' + str(id) + '/Emails', 'GET', '')
         return self.dictToList(json.loads(text))
     
+    def getContactEvents(self, id):
+        """
+        Gets events linked to a contact
+        """
+        text = self.generateRequest('/v2.2/Contacts/' + str(id) + '/Events', 'GET', '')
+        return self.dictToList(json.loads(text))
+        
+    
     def getContactNotes(self, id):
         """
         Gets a list of the notes attached to a contact, identified by its record locator. Returns a list of dictionaries.
         """
         text = self.generateRequest('/v2.2/Contacts/' + str(id) + '/Notes', 'GET', '')
+        return self.dictToList(json.loads(text))
+    
+    def getContactTags(self, id):
+        """
+        Gets a list of tags linked to a contact
+        """
+        text = self.generateRequest('/v2.2/Contacts/' + str(id) + '/Tags', 'GET', '')
         return self.dictToList(json.loads(text))
         
     def getContactTasks(self, id):
