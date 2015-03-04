@@ -163,6 +163,8 @@ class Insightly():
     
     def test(self, top=None):
         """
+        TODO: make this a lot less verbose, move test script into methods themselves
+        
         This helper function runs a test suite against the API to verify the API and client side methods are working normally. This may not reveal all corner cases, but will do a basic sanity check against the system.
         
         USAGE:
@@ -199,14 +201,10 @@ class Insightly():
             user_id = None
             print "FAIL: getUsers()"
             failed += 1
-        #
+        
         # getAccount
-        #
-        try:
-            accounts = self.getAccount()
-            print 'PASS: getAccount(), found ' + str(len(accounts)) + ' account linked to this API key.'
-        except:
-            print 'FAIL: getAccount()'
+        accounts = self.getAccount(test = True)
+        
         #
         # getContacts
         try:
@@ -655,15 +653,20 @@ class Insightly():
         else:
             return ''
         
-    def getAccount(self, email=None):
+    def getAccount(self, email=None, test=False):
         """
         Find which account is associated with the current API key, this endpoint will most likely be renamed to Instance
         """
-        if email is not None:
-            text = self.generateRequest('/Accounts?email=' + email, 'GET','', alt_auth=self.alt_header)
-        else:
+        if test:
             text = self.generateRequest('/Accounts', 'GET', '')
-        return json.loads(text)
+            accounts = json.loads(text)
+            print 'PASS getAccount() : Found ' + len(accounts) + ' linked to this instance'
+        else:
+            if email is not None:
+                text = self.generateRequest('/Accounts?email=' + email, 'GET','', alt_auth=self.alt_header)
+            else:
+                text = self.generateRequest('/Accounts', 'GET', '')
+            return json.loads(text)
     
     def deleteComment(self, id):
         """
