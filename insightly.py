@@ -130,25 +130,28 @@ class Insightly():
     Read operations via the API are generally quite straightforward, so if you get struck on a write operation, this is a good workaround,
     as you are probably just missing a required field or using an invalid element ID when referring to something such as a link to a contact.
     """
-    def __init__(self, apikey=''):
+    def __init__(self, apikey='', version='2.2'):
 	"""
 	Instantiates the class, logs in, and fetches the current list of users. Also identifies the account owner's user ID, which
 	is a required field for some actions. This is stored in the property Insightly.owner_id
 
 	Raises an exception if login or call to getUsers() fails, most likely due to an invalid or missing API key
 	"""
-        self.alt_header = 'Basic '
-        self.apikey = apikey
-        self.baseurl = 'https://api.insight.ly'
-        self.users = self.getUsers()
-        print 'CONNECTED: found ' + str(len(self.users)) + ' users'
-        for u in self.users:
-            if u.get('ACCOUNT_OWNER', False):
-                self.owner_email = u.get('EMAIL_ADDRESS','')
-                self.owner_id = u.get('USER_ID', None)
-                self.owner_name = u.get('FIRST_NAME','') + ' ' + u.get('LAST_NAME','')
-                print 'The account owner is ' + self.owner_name + ' [' + str(self.owner_id) + '] at ' + self.owner_email
-                break
+        if version == '2.2' or version == '2.1':
+            self.alt_header = 'Basic '
+            self.apikey = apikey
+            self.baseurl = 'https://api.insight.ly/' + version
+            self.users = self.getUsers()
+            print 'CONNECTED: found ' + str(len(self.users)) + ' users'
+            for u in self.users:
+                if u.get('ACCOUNT_OWNER', False):
+                    self.owner_email = u.get('EMAIL_ADDRESS','')
+                    self.owner_id = u.get('USER_ID', None)
+                    self.owner_name = u.get('FIRST_NAME','') + ' ' + u.get('LAST_NAME','')
+                    print 'The account owner is ' + self.owner_name + ' [' + str(self.owner_id) + '] at ' + self.owner_email
+                    break
+        else:
+            raise Exception('Python library only supports v2.1 or v2.2 (default) APIs'
                 
     def getMethods(self):
         """
@@ -656,16 +659,16 @@ class Insightly():
         Find which account is associated with the current API key, this endpoint will most likely be renamed to Instance
         """
         if email is not None:
-            text = self.generateRequest('/v2.2/Accounts?email=' + email, 'GET','', alt_auth=self.alt_header)
+            text = self.generateRequest('/Accounts?email=' + email, 'GET','', alt_auth=self.alt_header)
         else:
-            text = self.generateRequest('/v2.2/Accounts', 'GET', '')
+            text = self.generateRequest('/Accounts', 'GET', '')
         return json.loads(text)
     
     def deleteComment(self, id):
         """
         Delete a comment, expects the comment's ID (unique record locator).
         """
-        text = self.generateRequest('/v2.2/Comments/' + str(id), 'DELETE','')
+        text = self.generateRequest('/Comments/' + str(id), 'DELETE','')
         return True
 
     def getComments(self, id):
@@ -675,7 +678,7 @@ class Insightly():
         #
         # HTTP GET api.insight.ly/v2.2/Comments
         #
-        text = self.generateRequest('/v2.2/Comments/' + str(id), 'GET', '')
+        text = self.generateRequest('/Comments/' + str(id), 'GET', '')
         return json.loads(text)
     
     def updateComment(self, body, owner_user_id, comment_id=None):
@@ -694,7 +697,7 @@ class Insightly():
         if comment_id is not None and type(comment_id) is int:
             data['COMMENT_ID'] = comment_id
         urldata = urllib.urlencode(data)
-        text = self.generateRequest('/v2.2/Comments', 'PUT', urldata)
+        text = self.generateRequest('/Comments', 'PUT', urldata)
         return json.loads(text)
     
     def addContact(self,  contact):
@@ -712,9 +715,9 @@ class Insightly():
         else:
             if type(contact) is dict:
                 if contact.get('CONTACT_ID', 0) > 0:
-                    text = self.generateRequest('/v2.2/Contacts', 'PUT', json.dumps(contact))
+                    text = self.generateRequest('/Contacts', 'PUT', json.dumps(contact))
                 else:
-                    text = self.generateRequest('/v2.2/Contacts', 'POST', json.dumps(contact))
+                    text = self.generateRequest('/Contacts', 'POST', json.dumps(contact))
                 return json.loads(text)
             else:
                 raise Exception('contact must be a dictionary with valid contact data fields, or the string \'sample\' to request a sample object')
@@ -729,9 +732,9 @@ class Insightly():
             if at == 'work' or at == 'home' or at == 'postal' or at == 'other':
                 address_id = address.get('ADDRESS_ID', None)
                 if address_id is not None:
-                    text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Addresses', 'PUT', json.dumps(address))
+                    text = self.generateRequest('/Contacts/' + str(contact_id) + '/Addresses', 'PUT', json.dumps(address))
                 else:
-                    text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Addresses', 'POST',json.dumps(address))
+                    text = self.generateRequest('/Contacts/' + str(contact_id) + '/Addresses', 'POST',json.dumps(address))
                 return json.loads(text)
             else:
                 raise Exception('TYPE must be home, work, postal or other')
@@ -748,9 +751,9 @@ class Insightly():
             if ct == 'phone' or ct == 'email' or ct == 'pager' or ct == 'fax' or ct == 'website' or ct == 'other':
                 contact_info_id = contactinfo.get('CONTACT_INFO_ID', None)
                 if contact_info_id is not None:
-                    text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/ContactInfos', 'PUT', json.dumps(contactinfo))
+                    text = self.generateRequest('/Contacts/' + str(contact_id) + '/ContactInfos', 'PUT', json.dumps(contactinfo))
                 else:
-                    text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/ContactInfos', 'POST', json.dumps(contactinfo))
+                    text = self.generateRequest('/Contacts/' + str(contact_id) + '/ContactInfos', 'POST', json.dumps(contactinfo))
                 return json.loads(text)
             else:
                 raise Exception('TYPE must be phone, email, pager, fax, website or other')
@@ -764,9 +767,9 @@ class Insightly():
         if type(event) is dict:
             event_id = event.get('EVENT_ID', None)
             if event_id is not None:
-                text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Events', 'PUT', json.dumps(event))
+                text = self.generateRequest('/Contacts/' + str(contact_id) + '/Events', 'PUT', json.dumps(event))
             else:
-                text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Events', 'POST', json.dumps(event))
+                text = self.generateRequest('/Contacts/' + str(contact_id) + '/Events', 'POST', json.dumps(event))
         else:
             raise Exception('event must be a dictionary')
         
@@ -777,9 +780,9 @@ class Insightly():
         if type(file_attachment) is dict:
             file_attachment_id = file_attachment.get('FILE_ATTACHMENT_ID', None)
             if file_attachment_id is not None:
-                text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/FileAttachments', 'PUT', json.dumps(file_attachment))
+                text = self.generateRequest('/Contacts/' + str(contact_id) + '/FileAttachments', 'PUT', json.dumps(file_attachment))
             else:
-                text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/FileAttachments', 'POST', json.dumps(file_attachment))
+                text = self.generateRequest('/Contacts/' + str(contact_id) + '/FileAttachments', 'POST', json.dumps(file_attachment))
             return json.loads(text)
         else:
             raise Exception('file_attachment must be a dictionary')
@@ -788,7 +791,7 @@ class Insightly():
         """
         Start following a contact
         """
-        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Follow', 'POST', '')
+        text = self.generateRequest('/Contacts/' + str(contact_id) + '/Follow', 'POST', '')
         return True
     
     def addContactTags(self, contact_id, tags):
@@ -801,49 +804,49 @@ class Insightly():
             tags = string.split(tags,',')
         else:
             raise Exception('tags must either be a string or a list of strings')
-        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Tags', 'POST', json.dumps(tags))
+        text = self.generateRequest('/Contacts/' + str(contact_id) + '/Tags', 'POST', json.dumps(tags))
         return json.loads(text)
         
     def deleteContact(self, contact_id):
         """
         Deletes a comment, identified by its record id
         """
-        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id), 'DELETE', '')
+        text = self.generateRequest('/Contacts/' + str(contact_id), 'DELETE', '')
         return True
     
     def deleteContactAddress(self, contact_id, address_id):
         """
         Delete an address linked to a contact in Insightly.
         """
-        text = self.generateRequest('/v2.2/Contacts/' + str(xcontact_id) + '/Addresses/' + str(address_id), 'DELETE', '')
+        text = self.generateRequest('/Contacts/' + str(xcontact_id) + '/Addresses/' + str(address_id), 'DELETE', '')
         return True
     
     def deleteContactContactInfo(self, contact_id, contact_info_id):
         """
         Delete a contact info from a contact
         """
-        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/ContactInfos/' + str(contact_info_id), 'DELETE', '')
+        text = self.generateRequest('/Contacts/' + str(contact_id) + '/ContactInfos/' + str(contact_info_id), 'DELETE', '')
         return True
     
     def deleteContactEvent(self, contact_id, event_id):
         """
         Delete an event from a contact
         """
-        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Events/' + str(event_id), 'DELETE', '')
+        text = self.generateRequest('/Contacts/' + str(contact_id) + '/Events/' + str(event_id), 'DELETE', '')
         return True
     
     def deleteContactFileAttachment(self, contact_id, file_attachment_id):
         """
         Delete a file attachment from a contact
         """
-        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/FileAttachments/' + str(file_attachment_id), 'DELETE', '')
+        text = self.generateRequest('/Contacts/' + str(contact_id) + '/FileAttachments/' + str(file_attachment_id), 'DELETE', '')
         return True
     
     def deleteContactFollow(self, contact_id):
         """
         Stop following a contact
         """
-        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Follow', 'DELETE','')
+        text = self.generateRequest('/Contacts/' + str(contact_id) + '/Follow', 'DELETE','')
         return True
     
     def deleteContactTags(self, contact_id, tag):
@@ -897,7 +900,7 @@ class Insightly():
                 querystring += '&ids='
             for i in ids:
                 querystring += i + ','
-        text = self.generateRequest('/v2.2/Contacts' + querystring, 'GET', '')
+        text = self.generateRequest('/Contacts' + querystring, 'GET', '')
         return self.dictToList(json.loads(text))
     
     def getContact(self, contact_id):
@@ -905,21 +908,21 @@ class Insightly():
         Gets a specific contact, identified by its record id
         """
         # Do lazy exception handling, returns True if all goes well, otherwise raises whatever exception caused the issue
-        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id), 'GET','')
+        text = self.generateRequest('/Contacts/' + str(contact_id), 'GET','')
         return json.loads(text)
         
     def getContactAddresses(self, contact_id):
         """
         Get addresses linked to a contact
         """
-        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Addresses', 'GET', '')
+        text = self.generateRequest('/Contacts/' + str(contact_id) + '/Addresses', 'GET', '')
         return json.loads(text)
     
     def getContactContactInfos(self, contact_id):
         """
         Get ContactInfos linked to a contact
         """
-        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/ContactInfos', 'GET', '')
+        text = self.generateRequest('/Contacts/' + str(contact_id) + '/ContactInfos', 'GET', '')
         return json.loads(text)
         
     def getContactEmails(self, contact_id):
@@ -931,49 +934,49 @@ class Insightly():
         #
         # HTTP GET api.insight.ly/v2.2/Contacts/{id}/Emails
         #
-        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Emails', 'GET', '')
+        text = self.generateRequest('/Contacts/' + str(contact_id) + '/Emails', 'GET', '')
         return self.dictToList(json.loads(text))
     
     def getContactEvents(self, contact_id):
         """
         Gets events linked to a contact
         """
-        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Events', 'GET', '')
+        text = self.generateRequest('/Contacts/' + str(contact_id) + '/Events', 'GET', '')
         return self.dictToList(json.loads(text))
     
     def getContactFileAttachments(self, contact_id):
         """
         Gets files attached to a contact
         """
-        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/FileAttachments', 'GET', '')
+        text = self.generateRequest('/Contacts/' + str(contact_id) + '/FileAttachments', 'GET', '')
         return self.dictToList(json.loads(text))
     
     def getContactNotes(self, contact_id):
         """
         Gets a list of the notes attached to a contact, identified by its record locator. Returns a list of dictionaries.
         """
-        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Notes', 'GET', '')
+        text = self.generateRequest('/Contacts/' + str(contact_id) + '/Notes', 'GET', '')
         return self.dictToList(json.loads(text))
     
     def getContactTags(self, contact_id):
         """
         Gets a list of tags linked to a contact
         """
-        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Tags', 'GET', '')
+        text = self.generateRequest('/Contacts/' + str(contact_id) + '/Tags', 'GET', '')
         return self.dictToList(json.loads(text))
         
     def getContactTasks(self, contact_id):
         """
         Gets a list of the tasks attached to a contact, identified by its record locator. Returns a list of dictionaries.
         """
-        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Tasks', 'GET', '')
+        text = self.generateRequest('/Contacts/' + str(contact_id) + '/Tasks', 'GET', '')
         return self.dictToList(json.loads(text))
     
     def getCountries(self):
         """
         Gets a list of countries recognized by Insightly. Returns a list of dictionaries.
         """
-        text = self.generateRequest('/v2.2/Countries', 'GET', '')
+        text = self.generateRequest('/Countries', 'GET', '')
         countries = json.loads(text)
         return countries
     
@@ -981,7 +984,7 @@ class Insightly():
         """
         Gets a list of currencies recognized by Insightly. Returns a list of dictionaries.
         """
-        text = self.generateRequest('/v2.2/Currencies', 'GET', '')
+        text = self.generateRequest('/Currencies', 'GET', '')
         currencies = json.loads(text)
         return currencies
     
@@ -989,14 +992,14 @@ class Insightly():
         """
         Gets a list of custom fields, returns a list of dictionaries
         """
-        text = self.generateRequest('/v2.2/CustomFields', 'GET', '')
+        text = self.generateRequest('/CustomFields', 'GET', '')
         return self.dictToList(json.loads(text))
     
     def getCustomField(self, id):
         """
         Gets details for a custom field, identified by its record id. Returns a dictionary
         """
-        text = self.generateRequest('/v2.2/CustomFields/' + str(id), 'GET', '')
+        text = self.generateRequest('/CustomFields/' + str(id), 'GET', '')
         return json.loads(text)
     
     def getEmails(self, top=None, skip=None, orderby=None, filters=None):
@@ -1006,7 +1009,7 @@ class Insightly():
         This search method supports the OData operators: top, skip, orderby and filters
         """
         querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=None)
-        text = self.generateRequest('/v2.2/Emails' + querystring, 'GET','')
+        text = self.generateRequest('/Emails' + querystring, 'GET','')
         return self.dictToList(json.loads(text))
         
     def getEmail(self, id):
@@ -1015,7 +1018,7 @@ class Insightly():
         
         Returns a dictionary as a response or raises an exception
         """
-        text = self.generateRequest('/v2.2/Emails/' + str(id), 'GET', '')
+        text = self.generateRequest('/Emails/' + str(id), 'GET', '')
         return json.loads(text)
         
     def deleteEmail(self,id):
@@ -1024,14 +1027,14 @@ class Insightly():
         
         Returns True or raises an exception
         """
-        text = self.generateRequest('/v2.2/Emails/' + str(id), 'DELETE', '')
+        text = self.generateRequest('/Emails/' + str(id), 'DELETE', '')
         return True
     
     def getEmailComments(self, id):
         """
         Returns the comments attached to an email, identified by its record locator id
         """
-        text = self.generateRequest('/v2.2/Emails/' + str(id) + '/Comments')
+        text = self.generateRequest('/Emails/' + str(id) + '/Comments')
         return self.dictToList(json.loads(text))
         
     def addCommentToEmail(self, id, body, owner_user_id):
@@ -1047,7 +1050,7 @@ class Insightly():
             OWNER_USER_ID = owner_user_id,
         )
         urldata = json.dumps(data)
-        text = self.generateRequest('/v2.2/Emails/' + str(id) + '/Comments', 'POST', urldata)
+        text = self.generateRequest('/Emails/' + str(id) + '/Comments', 'POST', urldata)
         return json.loads(text)
     
     def addEvent(self, event):
@@ -1074,7 +1077,7 @@ class Insightly():
         """
         Deletes an event, identified by its record id
         """
-        text = self.generateRequest('/v2.2/Events/' + str(id), 'DELETE', '')
+        text = self.generateRequest('/Events/' + str(id), 'DELETE', '')
         return True
         
     def getEvents(self, top=None, skip=None, orderby=None, filters=None):
@@ -1091,7 +1094,7 @@ class Insightly():
         List is returned as a list of dictionaries.
         """
         querystring = self.ODataQuery('', top = top, skip=skip, orderby = orderby, filters = filters)
-        text = self.generateRequest('/v2.2/Events' + querystring, 'GET', '')
+        text = self.generateRequest('/Events' + querystring, 'GET', '')
         return self.dictToList(json.loads(text))
         
     def getEvent(self, id):
@@ -1100,7 +1103,7 @@ class Insightly():
         
         Returns a dictionary
         """
-        text = self.generateRequest('/v2.2/Events/' + str(id))
+        text = self.generateRequest('/Events/' + str(id))
         json.loads(text)
     
     def addFileCategory(self, category, dummy=False):
@@ -1117,9 +1120,9 @@ class Insightly():
             raise Exception('category must be a dict')
         urldata = json.dumps(category)
         if category.get('CATEGORY_ID',None) is not None:
-            text = self.generateRequest('/v2.2/FileCategories', 'PUT', urldata)
+            text = self.generateRequest('/FileCategories', 'PUT', urldata)
         else:
-            text = self.generateRequest('/v2.2/FileCategories', 'POST', urldata)
+            text = self.generateRequest('/FileCategories', 'POST', urldata)
         return json.loads(text)
     
     def deleteFileCategory(self, id):
@@ -1128,7 +1131,7 @@ class Insightly():
         
         Returns True if successful or raises an exception
         """
-        text = self.generateRequest('/v2.2/FileCategories/' + str(id), 'DELETE', '')
+        text = self.generateRequest('/FileCategories/' + str(id), 'DELETE', '')
         return True
     
     def getFileCategories(self):
@@ -1137,7 +1140,7 @@ class Insightly():
         
         Returns a list of dictionaries
         """
-        text = self.generateRequest('/v2.2/FileCategories', 'GET', '')
+        text = self.generateRequest('/FileCategories', 'GET', '')
         return self.dictToList(json.loads(text))
         
     def getFileCategory(self, id):
@@ -1146,7 +1149,7 @@ class Insightly():
         
         Returns a dictionary
         """
-        text = self.generateRequest('/v2.2/FileCategories/' + str(id), 'GET', '')
+        text = self.generateRequest('/FileCategories/' + str(id), 'GET', '')
         json.loads(text)
     
     def addNote(self, note):
@@ -1168,16 +1171,16 @@ class Insightly():
         else:
             if type(note) is dict:
                 if note.get('NOTE_ID',0) > 0:
-                    text = self.generateRequest('/v2.2/Notes', 'PUT', json.dumps(note))
+                    text = self.generateRequest('/Notes', 'PUT', json.dumps(note))
                 else:
-                    text = self.generateRequest('/v2.2/Notes', 'POST', json.dumps(note))
+                    text = self.generateRequest('/Notes', 'POST', json.dumps(note))
                 return json.loads(text)
     
     def deleteNote(self, id):
         """
         Delete a note, identified by its record locator.
         """
-        text = self.generateRequest('/v2.2/Notes/' + str(id), 'DELETE', '')
+        text = self.generateRequest('/Notes/' + str(id), 'DELETE', '')
         return True
     
     def getNotes(self, top=None, skip=None, orderby=None, filters=None):
@@ -1192,14 +1195,14 @@ class Insightly():
         filters = list of filter statements
         """
         querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=filters)
-        text = self.generateRequest('/v2.2/Notes' + querystring, 'GET', '')
+        text = self.generateRequest('/Notes' + querystring, 'GET', '')
         return self.dictToList(json.loads(text))
         
     def getNote(self, id):
         """
         Gets a note, identified by its record id. Returns a dictionary or raises an error.
         """
-        text = self.generateRequest('/v2.2/Notes/' + str(id), 'GET', '')
+        text = self.generateRequest('/Notes/' + str(id), 'GET', '')
         try:
             return json.loads(text)
         except:
@@ -1210,7 +1213,7 @@ class Insightly():
         """
         Gets the comments attached to a note, identified by its record id. Returns a list of dictionaries.
         """
-        text = self.generateRequest('/v2.2/Notes/' + str(id) + '/Comments', 'GET', '')
+        text = self.generateRequest('/Notes/' + str(id) + '/Comments', 'GET', '')
         return self.dictToList(json.loads(text))
         
     def addNoteComment(self, id, comment):
@@ -1230,7 +1233,7 @@ class Insightly():
             else:
                 raise Exception('The parameter comment should be a dictionary with the required fields, or the string \'sample\' to request a sample object.')
         elif type(comment) is dict:
-            text = self.generateRequest('/v2.2/' + str(id) +'/Comments', 'POST', json.dumps(comment))
+            text = self.generateRequest('/' + str(id) +'/Comments', 'POST', json.dumps(comment))
             return json.loads(text)
         else:
             raise Exception('The parameter comment should be a dictionary with the required fields, or the string \'sample\' to request a sample object.')
@@ -1247,9 +1250,9 @@ class Insightly():
                 raise Exception('The parameter opportunity must be a dictionary with valid fields for an opportunity, or the string \'sample\' to request a sample object.')
         elif type(opportunity) is dict:
             if opportunity.get('OPPORTUNITY_ID',0) > 0:
-                text = self.generateRequest('/v2.2/Opportunities', 'PUT', json.dumps(opportunity))
+                text = self.generateRequest('/Opportunities', 'PUT', json.dumps(opportunity))
             else:
-                text = self.generateRequest('/v2.2/Opportunities', 'POST', json.dumps(opportunity))
+                text = self.generateRequest('/Opportunities', 'POST', json.dumps(opportunity))
             return json.loads(text)
         else:
             raise Exception('The parameter opportunity must be a dictionary with valid fields for an opportunity, or the string \'sample\' to request a sample object.')
@@ -1258,7 +1261,7 @@ class Insightly():
         """
         Deletes an opportunity, identified by its record id. Returns True if successful, or raises an exception
         """
-        text = self.generateRequest('/v2.2/Opportunities/' + str(id), 'DELETE', '')
+        text = self.generateRequest('/Opportunities/' + str(id), 'DELETE', '')
         return True
     
     def getOpportunities(self, ids=None, tag=None, top=None, skip=None, orderby=None, filters=None):
@@ -1272,42 +1275,42 @@ class Insightly():
         filters = list of OData filter statements
         """
         querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=filters)
-        text = self.generateRequest('/v2.2/Opportunities' + querystring, 'GET', '')
+        text = self.generateRequest('/Opportunities' + querystring, 'GET', '')
         return self.dictToList(json.loads(text))
     
     def getOpportunity(self, id):
         """
         Gets an opportunity's details, identified by its record id, returns a dictionary
         """
-        text = self.generateRequest('/v2.2/Opportunities/' + str(id), 'GET', '')
+        text = self.generateRequest('/Opportunities/' + str(id), 'GET', '')
         return json.loads(text)
     
     def getOpportunityStateHistory(self, id):
         """
         Gets the history of states and reasons for an opportunity.
         """
-        text = self.generateRequest('/v2.2/Opportunities/' + str(id) + '/StateHistory', 'GET', '')
+        text = self.generateRequest('/Opportunities/' + str(id) + '/StateHistory', 'GET', '')
         return self.dictToList(json.loads(text))
     
     def getOpportunityEmails(self, id):
         """
         Gets the emails linked to an opportunity
         """
-        text = self.generateRequest('/v2.2/Opportunities/' + str(id) + '/Emails', 'GET', '')
+        text = self.generateRequest('/Opportunities/' + str(id) + '/Emails', 'GET', '')
         return self.dictToList(json.loads(text))
     
     def getOpportunityNotes(self, id):
         """
         Gets the notes linked to an opportunity
         """
-        text = self.generateRequest('/v2.2/Opportunities/' + str(id) + '/Notes', 'GET', '')
+        text = self.generateRequest('Opportunities/' + str(id) + '/Notes', 'GET', '')
         return self.dictToList(json.loads(text))
     
     def getOpportunityTasks(self, id):
         """
         Gets the tasks linked to an opportunity
         """
-        text = self.generateRequest('/v2.2/Opportunities/' + str(id) + '/Tasks', 'GET', '')
+        text = self.generateRequest('Opportunities/' + str(id) + '/Tasks', 'GET', '')
         return self.dictToList(json.loads(text))
     
     def addOpportunityCategory(self, category):
@@ -1322,37 +1325,37 @@ class Insightly():
                 raise Exception('category must be a dictionary, or \'sample\' to request a sample object')
         else:
             if category.get('CATEGORY_ID', 0) > 0:
-                text = self.generateRequest('/v2.2/OpportunityCategories', 'PUT', json.dumps(category))
+                text = self.generateRequest('OpportunityCategories', 'PUT', json.dumps(category))
             else:
-                text = self.generateRequest('/v2.2/OpportunityCategories', 'POST', json.dumps(category))
+                text = self.generateRequest('OpportunityCategories', 'POST', json.dumps(category))
             return json.loads(text)
     
     def deleteOpportunityCategory(self, id):
         """
         Deletes an opportunity category. Returns True or raises an exception.
         """
-        text = self.generateRequest('/v2.2/OpportunityCategories/' + str(id), 'DELETE', '')
+        text = self.generateRequest('/OpportunityCategories/' + str(id), 'DELETE', '')
         return True
     
     def getOpportunityCategory(self, id):
         """
         Gets an opportunity category, identified by its record id.
         """
-        text = self.generateRequest('/v2.2/OpportunityCategories/' + str(id), 'GET', '')
+        text = self.generateRequest('/OpportunityCategories/' + str(id), 'GET', '')
         return json.loads(text)
     
     def getOpportunityCategories(self):
         """
         Gets a list of opportunity categories.
         """
-        text = self.generateRequest('/v2.2/OpportunityCategories', 'GET', '')
+        text = self.generateRequest('/OpportunityCategories', 'GET', '')
         return self.dictToList(json.loads(text))
     
     def getOpportunityStateReasons(self):
         """
         Gets a list of opportunity state reasons, returns a list of dictionaries
         """
-        text = self.generateRequest('/v2.2/OpportunityStateReasons', 'GET', '')
+        text = self.generateRequest('OpportunityStateReasons', 'GET', '')
         return self.dictToList(json.loads(text))
     
     def addOrganization(self, organization):
@@ -1371,9 +1374,9 @@ class Insightly():
                 raise Exception('The parameter organization must be a dictionary with valid fields for an organization, or the string \'sample\' to request a sample object.')
         elif type(organization) is dict:
             if organization.get('ORGANIZATION_ID', 0) > 0:
-                text = self.generateRequest('/v2.2/Organisations', 'PUT', json.dumps(organization))
+                text = self.generateRequest('/Organisations', 'PUT', json.dumps(organization))
             else:
-                text = self.generateRequest('/v2.2/Organisations', 'POST', json.dumps(organization))
+                text = self.generateRequest('/Organisations', 'POST', json.dumps(organization))
             return json.loads(text)
         else:
             raise Exception('The parameter organization must be a dictionary with valid fields for an organization, or the string \'sample\' to request a sample object.')
@@ -1382,7 +1385,7 @@ class Insightly():
         """
         Delete an organization, identified by its record locator
         """
-        text = self.generateRequest('/v2.2/Organisations/' + str(id), 'DELETE', '')
+        text = self.generateRequest('/Organisations/' + str(id), 'DELETE', '')
         return True
     
     def getOrganizations(self, ids=None, domain=None, tag=None, top=None, skip=None, orderby=None, filters=None):
@@ -1411,35 +1414,35 @@ class Insightly():
             else:
                 querystring += '&ids=' + ids
         querystring = self.ODataQuery(querystring, top=top, skip=skip, orderby=orderby, filters=filters)
-        text = self.generateRequest('/v2.2/Organisations' + querystring, 'GET', '')
+        text = self.generateRequest('/Organisations' + querystring, 'GET', '')
         return self.dictToList(json.loads(text))
         
     def getOrganization(self, id):
         """
         Gets an organization, identified by its record id, returns a dictionary
         """
-        text = self.generateRequest('/v2.2/Organisations/' + str(id), 'GET', '')
+        text = self.generateRequest('/Organisations/' + str(id), 'GET', '')
         return json.loads(text)
     
     def getOrganizationEmails(self, id):
         """
         Gets a list of emails attached to an organization, identified by its record id, returns a list of dictionaries
         """
-        text = self.generateRequest('/v2.2/Organisations/' + str(id) + '/Emails', 'GET', '')
+        text = self.generateRequest('/Organisations/' + str(id) + '/Emails', 'GET', '')
         return self.dictToList(json.loads(text))
     
     def getOrganizationNotes(self, id):
         """
         Gets a list of notes attached to an organization, identified by its record id, returns a list of dictionaries
         """
-        text = self.generateRequest('/v2.2/Organisations/' + str(id) + '/Notes', 'GET', '')
+        text = self.generateRequest('/Organisations/' + str(id) + '/Notes', 'GET', '')
         return self.dictToList(json.loads(text))
     
     def getOrganizationTasks(self, id):
         """
         Gets a list of tasks attached to an organization, identified by its record id, returns a list of dictionaries
         """
-        text = self.generateRequest('/v2.2/Organisations/' + str(id) + '/Tasks', 'GET', '')
+        text = self.generateRequest('/Organisations/' + str(id) + '/Tasks', 'GET', '')
         return self.dictToList(json.loads(text))
     
     #
@@ -1450,14 +1453,14 @@ class Insightly():
         """
         Gets a list of pipelines
         """
-        text = self.generateRequest('/v2.2/Pipelines', 'GET', '')
+        text = self.generateRequest('/Pipelines', 'GET', '')
         return self.dictToList(json.loads(text))
     
     def getPipeline(self, id):
         """
         Gets details for a pipeline, identified by its unique record id
         """
-        text = self.generateRequest('/v2.2/Pipelines/' + str(id))
+        text = self.generateRequest('/Pipelines/' + str(id))
         return json.loads(text)
     
     #
@@ -1468,14 +1471,14 @@ class Insightly():
         """
         Gets a list of pipeline stages
         """
-        text = self.generateRequest('/v2.2/PipelineStages','GET','')
+        text = self.generateRequest('/PipelineStages','GET','')
         return self.dictToList(json.loads(text))
     
     def getPipelineStage(self, id):
         """
         Gets a pipeline stage, identified by its unique record id
         """
-        text = self.generateRequest('/v2.2/PipelineStages/' + str(id), 'GET','')
+        text = self.generateRequest('/PipelineStages/' + str(id), 'GET','')
         return json.loads(text)
     
     #
@@ -1486,14 +1489,14 @@ class Insightly():
         """
         Gets a list of project categories
         """
-        text = self.generateRequest('/v2.2/ProjectCategories', 'GET','')
+        text = self.generateRequest('/ProjectCategories', 'GET','')
         return self.dictToList(json.loads(text))
     
     def getProjectCategory(self, id):
         """
         Gets a project category, identified by its unique record id
         """
-        text = self.generateRequest('/v2.2/ProjectCategories/' + str(id), 'GET', '')
+        text = self.generateRequest('/ProjectCategories/' + str(id), 'GET', '')
         return json.loads(text)
     
     def addProjectCategory(self, category):
@@ -1509,16 +1512,16 @@ class Insightly():
                 raise Exception('category must be a dictionary, or \'sample\' to request a sample object')
         else:
             if category.get('CATEGORY_ID', 0) > 0:
-                text = self.generateRequest('/v2.2/ProjectCategories', 'PUT', json.dumps(category))
+                text = self.generateRequest('/ProjectCategories', 'PUT', json.dumps(category))
             else:
-                text = self.generateRequest('/v2.2/ProjectCategories', 'POST', json.dumps(category))
+                text = self.generateRequest('/ProjectCategories', 'POST', json.dumps(category))
             return json.loads(text)
     
     def deleteProjectCategory(self, id):
         """
         Deletes a project category, returns True if successful or raises an exception
         """
-        text = self.generateRequest('/v2.2/ProjectCategories/' + str(id), 'DELETE', '')
+        text = self.generateRequest('/ProjectCategories/' + str(id), 'DELETE', '')
         return True
     
     #
@@ -1538,23 +1541,23 @@ class Insightly():
                 raise Exception('project must be a dictionary containing valid project data fields, or the string \'sample\' to request a sample object')
         else:
             if project.get('PROJECT_ID', 0) > 0:
-                text = self.generateRequest('/v2.2/Projects', 'PUT', json.dumps(project))
+                text = self.generateRequest('/Projects', 'PUT', json.dumps(project))
             else:
-                text = self.generateRequest('/v2.2/Projects', 'POST', json.dumps(project))
+                text = self.generateRequest('/Projects', 'POST', json.dumps(project))
             return json.loads(text)
     
     def deleteProject(self, id):
         """
         Deletes a project, identified by its record id. Returns True if successful, or raises an exception.
         """
-        text = self.generateRequest('/v2.2/Projects/' + str(id), 'DELETE', '')
+        text = self.generateRequest('/Projects/' + str(id), 'DELETE', '')
         return True
     
     def getProject(self, id):
         """
         Gets a project's details, identified by its record id, returns a dictionary
         """
-        text = self.generateRequest('/v2.2/Projects/' + str(id), 'GET', '')
+        text = self.generateRequest('/Projects/' + str(id), 'GET', '')
         return json.loads(text)
     
     def getProjects(self, top=None, skip=None, orderby=None, filters=None):
@@ -1567,28 +1570,28 @@ class Insightly():
         filters = list of OData filter statements
         """
         querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=filters)
-        text = self.generateRequest('/v2.2/Projects' + querystring, 'GET', '')
+        text = self.generateRequest('/Projects' + querystring, 'GET', '')
         return self.dictToList(json.loads(text))
     
     def getProjectEmails(self, id):
         """
         Gets a list of emails attached to a project, identified by its record id, returns a list of dictionaries
         """
-        text = self.generateRequest('/v2.2/Projects/' + str(id) + '/Emails', 'GET', '')
+        text = self.generateRequest('/Projects/' + str(id) + '/Emails', 'GET', '')
         return self.dictToList(json.loads(text))
     
     def getProjectNotes(self, id):
         """
         Gets a list of notes attached to a project, identified by its record id, returns a list of dictionaries
         """
-        text = self.generateRequest('/v2.2/Projects/' + str(id) + '/Notes', 'GET', '')
+        text = self.generateRequest('/Projects/' + str(id) + '/Notes', 'GET', '')
         return self.dictToList(json.loads(text))
     
     def getProjectTasks(self, id):
         """
         Gets a list of tasks attached to a project, identified by its record id, returns a list of dictionaries
         """
-        text = self.generateRequest('/v2.2/Projects/' + str(id) + '/Tasks', 'GET', '')
+        text = self.generateRequest('/Projects/' + str(id) + '/Tasks', 'GET', '')
         return self.dictToList(json.loads(text))
     
     #
@@ -1599,7 +1602,7 @@ class Insightly():
         """
         Gets a list of relationships.
         """
-        text = self.generateRequest('/v2.2/Relationships', 'GET', '')
+        text = self.generateRequest('/Relationships', 'GET', '')
         return self.dictToList(json.loads(text))
         
     #
@@ -1610,7 +1613,7 @@ class Insightly():
         """
         Gets a list of tags for a parent object
         """
-        text = self.generateRequest('/v2.2/Tags/' + str(id), 'GET', '')
+        text = self.generateRequest('/Tags/' + str(id), 'GET', '')
         self.dictToList(json.loads(text))
         
     #
@@ -1633,16 +1636,16 @@ class Insightly():
                 raise Exception('task must be a dictionary with valid task data fields, or the string \'sample\' to request a sample object')
         else:
             if task.get('TASK_ID',0) > 0:
-                text = self.generateRequest('/v2.2/Tasks', 'PUT', json.dumps(task))
+                text = self.generateRequest('/Tasks', 'PUT', json.dumps(task))
             else:
-                text = self.generateRequest('/v2.2/Tasks', 'POST', json.dumps(task))
+                text = self.generateRequest('/Tasks', 'POST', json.dumps(task))
             return json.loads(text)
     
     def deleteTask(self, id):
         """
         Deletes a task, identified by its record ID, returns True if successful or raises an exception
         """
-        text = self.generateRequest('/v2.2/Tasks/' + str(id), 'DELETE', '')
+        text = self.generateRequest('/Tasks/' + str(id), 'DELETE', '')
         return True
 
     def getTasks(self, ids=None, top=None, skip=None, orderby=None, filters=None):
@@ -1665,21 +1668,21 @@ class Insightly():
                 querystring += '?ids='
                 for i in ids:
                     querystring += i + ','
-        text = self.generateRequest('/v2.2/Tasks' + querystring, 'GET', '')
+        text = self.generateRequest('/Tasks' + querystring, 'GET', '')
         return self.dictToList(json.loads(text))
     
     def getTask(self, id):
         """
         Gets a task, identified by its record id
         """
-        text = self.generateRequest('/v2.2/Tasks/' + str(id), 'GET', '')
+        text = self.generateRequest('/Tasks/' + str(id), 'GET', '')
         return json.loads(text)
     
     def getTaskComments(self, id):
         """
         Gets a list of comments attached to a task, identified by its record id, returns a list of dictionaries
         """
-        text = self.generateRequest('/v2.2/Tasks/' + str(id) + '/Comments', 'GET', '')
+        text = self.generateRequest('/Tasks/' + str(id) + '/Comments', 'GET', '')
         return self.dictToList(json.loads(text))
     
     def addTaskComment(self, id, comment):
@@ -1693,7 +1696,7 @@ class Insightly():
         NOTE: this function is not yet 100%, going over details of data expected with engineering.
         """
         json = json.dumps(comment)
-        text = self.generateRequest('/v2.2/Tasks/' + str(id) + '/Comments', 'POST', json)
+        text = self.generateRequest('/Tasks/' + str(id) + '/Comments', 'POST', json)
         return json.loads(text)
     #
     # Following are methods for managing team members
@@ -1703,14 +1706,14 @@ class Insightly():
         """
         Gets a list of team members, returns a list of dictionaries
         """
-        text = self.generateRequest('/v2.2/TeamMembers?teamid=' + str(id), 'GET', '')
+        text = self.generateRequest('/TeamMembers?teamid=' + str(id), 'GET', '')
         return json.loads(text)
     
     def getTeamMember(self, id):
         """
         Gets a team member's details
         """
-        text = self.generateRequest('/v2.2/TeamMembers/' + str(id), 'GET', '')
+        text = self.generateRequest('/TeamMembers/' + str(id), 'GET', '')
         return json.loads(text)
     
     def addTeamMember(self, team_member):
@@ -1732,7 +1735,7 @@ class Insightly():
                 raise Exception('team_member must be a dictionary with valid fields, or a string \'sample\' to request a sample object.')
         else:
             if type(team_member) is dict:
-                text = self.generateRequest('/v2.2/TeamMembers', 'POST', json.dumps(team_member))
+                text = self.generateRequest('/TeamMembers', 'POST', json.dumps(team_member))
                 return json.loads(text)
             else:
                 raise Exception('team_member must be a dictionary with valid fields, or a string \'sample\' to request a sample object.')
@@ -1741,7 +1744,7 @@ class Insightly():
         """
         Deletes a team member, identified by their record id. Returns True if successful or raises an exception
         """
-        text = self.generateRequest('/v2.2/TeamMembers/' + str(id), 'DELETE', '')
+        text = self.generateRequest('/TeamMembers/' + str(id), 'DELETE', '')
         return True
     
     def updateTeamMember(self, team_member):
@@ -1763,7 +1766,7 @@ class Insightly():
                 raise Exception('team_member must be a dictionary with valid fields, or a string \'sample\' to request a sample object.')
         else:
             if type(team_member) is dict:
-                text = self.generateRequest('/v2.2/TeamMembers', 'PUT', json.dumps(team_member))
+                text = self.generateRequest('/TeamMembers', 'PUT', json.dumps(team_member))
                 return json.loads(text)
             else:
                 raise Exception('team_member must be a dictionary with valid fields, or a string \'sample\' to request a sample object.')
@@ -1777,14 +1780,14 @@ class Insightly():
         Gets a list of teams, returns a list of dictionaries
         """
         querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=filters)
-        text = self.generateRequest('/v2.2/Teams' + querystring, 'GET', '')
+        text = self.generateRequest('/Teams' + querystring, 'GET', '')
         return json.loads(text)
     
     def getTeam(self, id):
         """
         Gets a team, returns a dictionary
         """
-        text = self.generateRequest('/v2.2/Teams/' + str(id), 'GET', '')
+        text = self.generateRequest('/Teams/' + str(id), 'GET', '')
         return json.loads(text)
     
     def addTeam(self, team):
@@ -1806,9 +1809,9 @@ class Insightly():
             if type(team) is dict:
                 urldata = json.dumps(team)
                 if team.get('TEAM_ID',0) > 0:
-                    text = self.generateRequest('/v2.2/Teams', 'PUT', urldata)
+                    text = self.generateRequest('/Teams', 'PUT', urldata)
                 else:
-                    text = self.generateRequest('/v2.2/Teams', 'POST', urldata)
+                    text = self.generateRequest('/Teams', 'POST', urldata)
                 return json.loads(text)
             else:
                 raise Exception('team must be a dictionary or \'sample\' (to obtain a sample object)')
@@ -1817,7 +1820,7 @@ class Insightly():
         """
         Deletes a team, returns True if successful, or raises an exception
         """
-        text = self.generateRequest('/v2.2/Teams/' + str(id), 'DELETE', '')
+        text = self.generateRequest('/Teams/' + str(id), 'DELETE', '')
         return True
         
     #
@@ -1828,12 +1831,12 @@ class Insightly():
         """
         Gets a list of users for this account, returns a list of dictionaries
         """
-        text = self.generateRequest('/v2.2/Users', 'GET', '')
+        text = self.generateRequest('/Users', 'GET', '')
         return json.loads(text)
     
     def getUser(self, id):
         """
         Gets an individual user's details
         """
-        text = self.generateRequest('/v2.2/Users/' + str(id), 'GET', '')
+        text = self.generateRequest('/Users/' + str(id), 'GET', '')
         return json.loads(text)
