@@ -748,9 +748,9 @@ class Insightly():
             if ct == 'phone' or ct == 'email' or ct == 'pager' or ct == 'fax' or ct == 'website' or ct == 'other':
                 contact_info_id = contactinfo.get('CONTACT_INFO_ID', None)
                 if contact_info_id is not None:
-                    text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + 'ContactInfos', 'PUT', json.dumps(contactinfo))
+                    text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/ContactInfos', 'PUT', json.dumps(contactinfo))
                 else:
-                    text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + 'ContactInfos', 'POST', json.dumps(contactinfo))
+                    text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/ContactInfos', 'POST', json.dumps(contactinfo))
                 return json.loads(text)
             else:
                 raise Exception('TYPE must be phone, email, pager, fax, website or other')
@@ -764,11 +764,25 @@ class Insightly():
         if type(event) is dict:
             event_id = event.get('EVENT_ID', None)
             if event_id is not None:
-                text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + 'ContactInfos', 'PUT', json.dumps(event))
+                text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Events', 'PUT', json.dumps(event))
             else:
-                text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + 'ContactInfos', 'POST', json.dumps(event))
+                text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Events', 'POST', json.dumps(event))
         else:
             raise Exception('event must be a dictionary')
+        
+    def addContactFileAttachment(self, contact_id, file_attachment):
+        """
+        Add/update a file attachment for a contact
+        """
+        if type(file_attachment) is dict:
+            file_attachment_id = file_attachment.get('FILE_ATTACHMENT_ID', None)
+            if file_attachment_id is not None:
+                text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/FileAttachments', 'PUT', json.dumps(file_attachment))
+            else:
+                text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/FileAttachments', 'POST', json.dumps(file_attachment))
+            return json.loads(text)
+        else:
+            raise Exception('file_attachment must be a dictionary')
         
     def addContactFollow(self, contact_id):
         """
@@ -816,7 +830,14 @@ class Insightly():
         Delete an event from a contact
         """
         text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/Events/' + str(event_id), 'DELETE', '')
-        return True        
+        return True
+    
+    def deleteContactFileAttachment(self, contact_id, file_attachment_id):
+        """
+        Delete a file attachment from a contact
+        """
+        text = self.generateRequest('/v2.2/Contacts/' + str(contact_id) + '/FileAttachments/' + str(file_attachment_id), 'DELETE', '')
+        return True
     
     def deleteContactFollow(self, contact_id):
         """
@@ -919,7 +940,13 @@ class Insightly():
         """
         text = self.generateRequest('/v2.2/Contacts/' + str(id) + '/Events', 'GET', '')
         return self.dictToList(json.loads(text))
-        
+    
+    def getContactFileAttachments(self, id):
+        """
+        Gets files attached to a contact
+        """
+        text = self.generateRequest('/v2.2/Contacts/' + str(id) + '/FileAttachments', 'GET', '')
+        return self.dictToList(json.loads(text))
     
     def getContactNotes(self, id):
         """
