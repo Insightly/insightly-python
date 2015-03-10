@@ -443,56 +443,14 @@ class Insightly():
         except:
             print 'FAIL: getProjects()'
             
-        # Test getProjectCategories(), /v2.2/ProjectCategories
-        try:
-            categories = self.getProjectCategories()
-            print 'PASS: getProjectCategories(), found ' + str(len(categories)) + ' categories.'
-        except:
-            print 'FAIL: getProjectCategories()'
-            
-        # Test addProjectCategory()
-        try:
-            category = dict(
-                CATEGORY_NAME = 'Test Category',
-                ACTIVE = True,
-                BACKGROUND_COLOR = '000000',
-            )
-            category = self.addProjectCategory(category)
-            print 'PASS: addProjectCategory()'
-            self.deleteProjectCategory(category['CATEGORY_ID'])
-            print 'PASS: deleteProjectCategory()'
-        except:
-            print 'FAIL: addProjectCategory()'
-            print 'FAIL: deleteProjectCategory()'
-            
-        # Test getRelationships(), /v2.2/Relationships
-            
-        try:
-            relationships = self.getRelationships()
-            print 'PASS: getRelationships(), found ' + str(len(relationships)) + ' relationships.'
-        except:
-            print 'FAIL: getRelationships()'
-        
-        # Test getTasks(), /v2.2/Tasks
-        try:
-            tasks = self.getTasks(top=top, orderby='DUE_DATE desc')
-            print 'PASS: getTasks(), found ' + str(len(tasks)) + ' tasks.'
-        except:
-            print 'FAIL: getTasks()'
-            
-        # Test getTeams
-        try:
-            teams = self.getTeams()
+        categories = self.getProjectCategories(test = True)                     # get project categories
+        self.addProjectCategory(test = True)                                    # add/get/delete project category
+        relationships = self.getRelationships(test = True)                      # get relationships
+        tasks = self.getTasks(top=top, orderby='DUE_DATE desc', test = True)    # get tasks
+        teams = self.getTeams(test = True)                                      # get teams
+        if teams is not None:
             team = teams[0]
-            print 'PASS: getTeams(), found ' + str(len(teams)) + ' teams.'
-            # Test getTeamMembers
-            try:
-                team_members = self.getTeamMembers(team['TEAM_ID'])
-                print 'PASS: getTeamMembers(), found ' + str(len(team_members)) + ' team members.'
-            except:
-                print 'FAIL: getTeamMembers()'
-        except:
-            print 'FAIL: getTeams()'
+            team_members = self.getTeamMembers(team['TEAM_ID'], test = True)    # get team members
         
     def dictToList(self, data):
         """
@@ -1355,14 +1313,24 @@ class Insightly():
         else:
             raise Exception('The parameter opportunity must be a dictionary with valid fields for an opportunity, or the string \'sample\' to request a sample object.')
     
-    def deleteOpportunity(self, id):
+    def deleteOpportunity(self, id, test = False):
         """
         Deletes an opportunity, identified by its record id. Returns True if successful, or raises an exception
         """
-        text = self.generateRequest('/Opportunities/' + str(id), 'DELETE', '')
-        return True
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Opportunities/' + str(id), 'DELETE', '')
+                self.tests_passed += 1
+                return True
+            except:
+                print 'FAIL: deleteOpportunity()'
+        else:
+            text = self.generateRequest('/Opportunities/' + str(id), 'DELETE', '')
+            return True
+
     
-    def getOpportunities(self, ids=None, tag=None, top=None, skip=None, orderby=None, filters=None):
+    def getOpportunities(self, ids=None, tag=None, top=None, skip=None, orderby=None, filters=None, test=False):
         """
         Gets a list of opportunities
         
@@ -1372,9 +1340,20 @@ class Insightly():
         orderby = orderby clause, e.g.: orderby='DATE_UPDATED_UTC desc'
         filters = list of OData filter statements
         """
-        querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=filters)
-        text = self.generateRequest('/Opportunities' + querystring, 'GET', '')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=filters)
+                text = self.generateRequest('/Opportunities' + querystring, 'GET', '')
+                opportunities = self.dictToList(json.loads(text))
+                print 'PASS: getOpportunities() found ' + str(len(opportunities)) + ' opportunities'
+                self.tests_passed += 1
+            except:
+                print 'FAIL: getOpportunities()'
+        else:
+            querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=filters)
+            text = self.generateRequest('/Opportunities' + querystring, 'GET', '')
+            return self.dictToList(json.loads(text))
     
     def getOpportunity(self, id):
         """
@@ -1583,44 +1562,101 @@ class Insightly():
     # Following are methods for managing project categories
     #
     
-    def getProjectCategories(self):
+    def getProjectCategories(self, test = False):
         """
         Gets a list of project categories
         """
-        text = self.generateRequest('/ProjectCategories', 'GET','')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/ProjectCategories', 'GET','')
+                categories = self.dictToList(json.loads(text))
+                self.tests_passed += 1
+                print 'PASS: getProjectCategories() found ' + str(len(categories)) + ' project categories'
+            except:
+                print 'FAIL: getProjectCategories()'
+        else:
+            text = self.generateRequest('/ProjectCategories', 'GET','')
+            return self.dictToList(json.loads(text))
     
-    def getProjectCategory(self, id):
+    def getProjectCategory(self, id, test = False):
         """
         Gets a project category, identified by its unique record id
         """
-        text = self.generateRequest('/ProjectCategories/' + str(id), 'GET', '')
-        return json.loads(text)
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/ProjectCategories/' + str(id), 'GET', '')
+                category = json.loads(text)
+                self.tests_passed += 1
+                print 'PASS: getProjectCategory()'
+                return category
+            except:
+                print 'FAIL: getProjectCategory()'
+        else:
+            text = self.generateRequest('/ProjectCategories/' + str(id), 'GET', '')
+            return json.loads(text)
     
-    def addProjectCategory(self, category):
+    def addProjectCategory(self, category, test = False):
         """
         Add/update a project category. The parameter category should be a dictionary containing the project category details, or
         the string 'sample' to request a sample object. To add a new project category, just set the CATEGORY_ID to 0 or omit it. 
         """
-        if type(category) is str:
-            if category == 'sample':
-                categories = self.getProjectCategories()
-                return categories[0]
+        if test:
+            if type(category) is str:
+                if category == 'sample':
+                    categories = self.getProjectCategories()
+                    return categories[0]
+                else:
+                    raise Exception('category must be a dictionary, or \'sample\' to request a sample object')
             else:
-                raise Exception('category must be a dictionary, or \'sample\' to request a sample object')
+                if category.get('CATEGORY_ID', 0) > 0:
+                    text = self.generateRequest('/ProjectCategories', 'PUT', json.dumps(category))
+                else:
+                    text = self.generateRequest('/ProjectCategories', 'POST', json.dumps(category))
+                return json.loads(text)
         else:
-            if category.get('CATEGORY_ID', 0) > 0:
-                text = self.generateRequest('/ProjectCategories', 'PUT', json.dumps(category))
+            category = dict(
+                CATEGORY_NAME = 'Test Category',
+                ACTIVE = True,
+                BACKGROUND_COLOR = '000000',
+            )
+            self.tests_run += 1
+            try:
+                category = self.addProjectCategory(category)
+                print 'PASS: addProjectCategory()'
+                self.tests_passed += 1
+                
+            except:
+                print 'FAIL: addProjectCategory()'
+            if category is not None:
+                category_id = category.get('CATEGORY_ID',None)
+                if category_id is not None:
+                    category = self.getProjectCategory(category_id, test = True)
+                    self.deleteProjectCategory(category_id, test = True)
+                else:
+                    print 'FAIL: getProjectCategory()'
+                    print 'FAIL: deleteProjectCategory()'
             else:
-                text = self.generateRequest('/ProjectCategories', 'POST', json.dumps(category))
-            return json.loads(text)
+                print 'FAIL: getProjectCategory()'
+                print 'FAIL: deleteProjectCategory()'
     
-    def deleteProjectCategory(self, id):
+    def deleteProjectCategory(self, id, test = False):
         """
         Deletes a project category, returns True if successful or raises an exception
         """
-        text = self.generateRequest('/ProjectCategories/' + str(id), 'DELETE', '')
-        return True
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/ProjectCategories/' + str(id), 'DELETE', '')
+                self.tests_passed += 1
+                print 'PASS: deleteProjectCategory()'
+                return True
+            except:
+                print 'FAIL: deleteProjectCategory()'
+        else:
+            text = self.generateRequest('/ProjectCategories/' + str(id), 'DELETE', '')
+            return True
     
     #
     # Following are methods use to list and manage Insightly projects
@@ -1696,12 +1732,23 @@ class Insightly():
     # Following are methods related to relationships between contacts and organizations
     #
     
-    def getRelationships(self):
+    def getRelationships(self, test=False):
         """
         Gets a list of relationships.
         """
-        text = self.generateRequest('/Relationships', 'GET', '')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Relationships', 'GET', '')
+                relationships = self.dictToList(json.loads(text))
+                print 'PASS: getRelationships() found ' + str(len(relationships)) + ' relationships'
+                self.tests_passed += 1
+                return relationships
+            except:
+                print 'FAIL: getRelationships()'
+        else:
+            text = self.generateRequest('/Relationships', 'GET', '')
+            return self.dictToList(json.loads(text))
         
     #
     # Following are methods related to tags
@@ -1746,7 +1793,7 @@ class Insightly():
         text = self.generateRequest('/Tasks/' + str(id), 'DELETE', '')
         return True
 
-    def getTasks(self, ids=None, top=None, skip=None, orderby=None, filters=None):
+    def getTasks(self, ids=None, top=None, skip=None, orderby=None, filters=None, test = False):
         """
         Gets a list of tasks, expects the optional parameter ids, which contains a list of task ids
         
@@ -1766,8 +1813,19 @@ class Insightly():
                 querystring += '?ids='
                 for i in ids:
                     querystring += i + ','
-        text = self.generateRequest('/Tasks' + querystring, 'GET', '')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Tasks' + querystring, 'GET', '')
+                tasks = self.dictToList(json.loads(text))
+                print 'PASS: getTasks() found ' + str(len(tasks)) + ' tasks'
+                self.tests_passed += 1
+                return tasks
+            except:
+                print 'FAIL: getTasks()'
+        else:
+            text = self.generateRequest('/Tasks' + querystring, 'GET', '')
+            return self.dictToList(json.loads(text))
     
     def getTask(self, id):
         """
@@ -1800,19 +1858,39 @@ class Insightly():
     # Following are methods for managing team members
     #
     
-    def getTeamMembers(self, id):
+    def getTeamMembers(self, id, test = False):
         """
         Gets a list of team members, returns a list of dictionaries
         """
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/TeamMembers?teamid=' + str(id), 'GET', '')
+                teammembers = json.loads(text)
+                self.tests_passed += 1
+                print 'PASS: getTeamMembers() found ' + str(len(teammembers)) + ' team members'
+            except:
+                print 'FAIL: getTeamMembers()'
         text = self.generateRequest('/TeamMembers?teamid=' + str(id), 'GET', '')
         return json.loads(text)
     
-    def getTeamMember(self, id):
+    def getTeamMember(self, id, test = False):
         """
         Gets a team member's details
         """
-        text = self.generateRequest('/TeamMembers/' + str(id), 'GET', '')
-        return json.loads(text)
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/TeamMembers/' + str(id), 'GET', '')
+                teammember = json.loads(text)
+                print 'PASS: getTeamMemeber()'
+                self.tests_passed += 1
+                return teammember
+            except:
+                print 'FAIL: getTeamMember()'
+        else:
+            text = self.generateRequest('/TeamMembers/' + str(id), 'GET', '')
+            return json.loads(text)
     
     def addTeamMember(self, team_member):
         """
