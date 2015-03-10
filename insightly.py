@@ -183,58 +183,24 @@ class Insightly():
         passed = 0
         failed = 0
         
-        currencies = self.getCurrencies()
-        if len(currencies) > 0:
-            print "Authentication passed... "
-            passed += 1
-        else:
-            failed += 1
-        # Test getUsers(), /v2.2/Users, also get root user to use in testing write/update calls
-        # Test getUsers(), /v2.2/Users
-        try:
-            users = self.getUsers()
-            user = users[0]
-            user_id = user['USER_ID']
-            print "PASS: getUsers(), found " + str(len(users)) + " users."
-            passed += 1
-        except:
-            user = None
-            users = None
-            user_id = None
-            print "FAIL: getUsers()"
-            failed += 1
-        
-        # getAccount
-        accounts = self.getAccount(test = True)
-        
         #
-        # getContacts
-        try:
-            contacts = self.getContacts(orderby='DATE_UPDATED_UTC desc', top=top)
-            contact = contacts[0]
-            print 'PASS: getContacts(), found ' + str(len(contacts)) + ' contacts.'
-        except:
-            contact = None
-            print 'FAIL: getContacts()'
+        # call methods in self test mode
+        #
+        
+        currencies = self.getCurrencies(test = True)
+        users = self.getUsers(test = True)
+        accounts = self.getAccount(test = True)
+        contact = self.getContacts(orderby = 'DATE_UPDATED_UTC desc', top = top, test = True)
         if contact is not None:
             contact_id = contact['CONTACT_ID']
-            try:
-                emails = self.getContactEmails(contact_id)
-                print 'PASS: getContactEmails(), found ' + str(len(emails)) + ' emails for random contact.'
-            except:
-                print 'FAIL: getContactEmails()'
-                
-            try:
-                notes = self.getContactNotes(contact_id)
-                print 'PASS: getContactNotes(), found ' + str(len(notes)) + ' notes for random contact.'
-            except:
-                print 'FAIL: getContactNotes()'
-                
-            try:
-                tasks = self.getContactTasks(contact_id)
-                print 'PASS: getContactTasks(), found ' + str(len(tasks)) + ' tasks for random contact.'
-            except:
-                print 'FAIL: getContactTasks()'
+            emails = self.getContactEmails(contact_id, test = True)
+            notes = self.getContactNotes(contact_id, test = True)
+            tasks = self.getContactTasks(contact_id, test = True)
+        
+        #
+        # left off here
+        #
+        
             
         # Test addContact(), /v2.2/Contacts
         try:
@@ -908,7 +874,7 @@ class Insightly():
             raise Exception('method only supported for version 2.2 API')
         pass
     
-    def getContacts(self, ids=None, email=None, tag=None, filters=None, top=None, skip=None, orderby=None):
+    def getContacts(self, ids=None, email=None, tag=None, filters=None, top=None, skip=None, orderby=None, test = False):
         """
         Get a list of matching contacts, expects the following optional parameters:
         
@@ -953,8 +919,20 @@ class Insightly():
                 querystring += '&ids='
             for i in ids:
                 querystring += i + ','
-        text = self.generateRequest('/Contacts' + querystring, 'GET', '')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Contacts' + querystring, 'GET', '')
+                contact = self.dictToList(json.loads(text))[0]
+                print 'PASS : getContacts()'
+                self.tests_passed += 1
+                return contact
+            except:
+                print 'FAIL : getContacts()'
+                return
+        else:
+            text = self.generateRequest('/Contacts' + querystring, 'GET', '')
+            return self.dictToList(json.loads(text))
     
     def getContact(self, contact_id):
         """
@@ -982,7 +960,7 @@ class Insightly():
         text = self.generateRequest('/Contacts/' + str(contact_id) + '/ContactInfos', 'GET', '')
         return json.loads(text)
         
-    def getContactEmails(self, contact_id):
+    def getContactEmails(self, contact_id, test = False):
         """
         Gets emails for a contact, identified by its record locator, returns a list of dictionaries
         """
@@ -991,10 +969,19 @@ class Insightly():
         #
         # HTTP GET api.insight.ly/v2.2/Contacts/{id}/Emails
         #
-        if self.version != '2.2':
-            raise Exception('method only supported for version 2.2 API')
-        text = self.generateRequest('/Contacts/' + str(contact_id) + '/Emails', 'GET', '')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Contacts/' + str(contact_id) + '/Emails', 'GET', '')
+                emails = self.dictToList(json.loads(text))
+                print 'PASS: getContactEmails() found ' + str(len(emails)) + ' emails'
+                self.tests_passed += 1
+                return emails
+            except:
+                print 'FAIL: getContactEmails()'
+        else:
+            text = self.generateRequest('/Contacts/' + str(contact_id) + '/Emails', 'GET', '')
+            return self.dictToList(json.loads(text))
     
     def getContactEvents(self, contact_id):
         """
@@ -1014,14 +1001,23 @@ class Insightly():
         text = self.generateRequest('/Contacts/' + str(contact_id) + '/FileAttachments', 'GET', '')
         return self.dictToList(json.loads(text))
     
-    def getContactNotes(self, contact_id):
+    def getContactNotes(self, contact_id, test = False):
         """
         Gets a list of the notes attached to a contact, identified by its record locator. Returns a list of dictionaries.
         """
-        if self.version != '2.2':
-            raise Exception('method only supported for version 2.2 API')
-        text = self.generateRequest('/Contacts/' + str(contact_id) + '/Notes', 'GET', '')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Contacts/' + str(contact_id) + '/Notes', 'GET', '')
+                notes = self.dictToList(json.loads(text))
+                print 'PASS: getContactNotes() found ' + str(len(notes)) + ' notes'
+                self.tests_passed += 1
+                return notes
+            except:
+                print 'FAIL: getContactNotes()'
+        else:
+            text = self.generateRequest('/Contacts/' + str(contact_id) + '/Notes', 'GET', '')
+            return self.dictToList(json.loads(text))
     
     def getContactTags(self, contact_id):
         """
@@ -1032,12 +1028,23 @@ class Insightly():
         text = self.generateRequest('/Contacts/' + str(contact_id) + '/Tags', 'GET', '')
         return self.dictToList(json.loads(text))
         
-    def getContactTasks(self, contact_id):
+    def getContactTasks(self, contact_id, test = True):
         """
         Gets a list of the tasks attached to a contact, identified by its record locator. Returns a list of dictionaries.
         """
-        text = self.generateRequest('/Contacts/' + str(contact_id) + '/Tasks', 'GET', '')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Contacts/' + str(contact_id) + '/Tasks', 'GET', '')
+                tasks = self.dictToList(json.loads(text))
+                print 'PASS: getContactTasks() found ' + str(len(tasks)) + ' tasks'
+                self.tests_passed += 1
+                return tasks
+            except:
+                print 'FAIL: getContactTasks()'
+        else:
+            text = self.generateRequest('/Contacts/' + str(contact_id) + '/Tasks', 'GET', '')
+            return self.dictToList(json.loads(text))
     
     def getCountries(self):
         """
@@ -1047,12 +1054,19 @@ class Insightly():
         countries = json.loads(text)
         return countries
     
-    def getCurrencies(self):
+    def getCurrencies(self, test = True):
         """
         Gets a list of currencies recognized by Insightly. Returns a list of dictionaries.
         """
         text = self.generateRequest('/Currencies', 'GET', '')
         currencies = json.loads(text)
+        if test:
+            try:
+                print 'PASS: found ' + str(len(currencies)) + ' supported currencies.'
+                self.tests_run += 1
+                self.tests_passed += 1
+            except:
+                self.tests_run += 1s
         return currencies
     
     def getCustomFields(self):
@@ -1905,6 +1919,7 @@ class Insightly():
                 print 'PASS: getUsers() : found ' + len(users)
                 self.tests_run += 1
                 self.tests_passed += 1
+                return userss
             except:
                 print 'FAIL: getUsers()'
                 self.tests_run += 1
