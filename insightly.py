@@ -617,8 +617,23 @@ class Insightly():
             result = urllib2.urlopen(request, data)
         else:
             result = urllib2.urlopen(request)
-        text = result.read()
-        return text
+        if result.status_code == 200 or result.status_code == 201:
+            text = result.read()
+            return text
+        elif result.status_code == 400:
+            raise Exception('400 : Bad request')
+        elif result.status_code == 401:
+            raise Exception('401 : Authentication error')
+        elif result.status_code == 403:
+            raise Exception('403 : Forbidden / permission denied')
+        elif result.status_code == 404:
+            raise Exception('404 : Object not found')
+        elif result.status_code == 405:
+            raise Exception('405 : Method not supported')
+        elif result.status_code == 500:
+            raise Exception('500 : System error')
+        else:
+            raise Exception('Unknown error')
     
     def ODataQuery(self, querystring, top=None, skip=None, orderby=None, filters=None):
         """
