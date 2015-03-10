@@ -219,44 +219,16 @@ class Insightly():
         except:
             contact = None
             print "FAIL: addContact()"
-                    
-        # Test getCountries(), /v2.2/Countries
-        try:
-            countries = self.getCountries()
-            print 'PASS: getCountries(), found ' + str(len(countries)) + ' countries.'
-        except:
-            print 'FAIL: getCountries()'
-            
-        # Test getCurrencies(), /v2.2/Currencies
-        try:
-            currencies = self.getCurrencies()
-            print 'PASS: getCurrencies(), found ' + str(len(currencies)) + ' currencies.'
-        except:
-            print 'FAIL: getCurrencies()'
-            
-        # Test getCustomFields(), /v2.2/CustomFields
-        try:
-            customfields = self.getCustomFields()
-            print 'PASS: getCustomFields(), found ' + str(len(customfields)) + ' custom fields.'
-        except:
-            print 'FAIL: getCustomFields()'
-            
-        # Test getEmails(), /v2.2/Emails
-        try:
-            emails = self.getEmails(top=top)
-            print 'PASS: getEmails(), found ' + str(len(emails)) + ' emails.'
-        except:
-            print 'FAIL: getEmails()'
+        
+        countries = self.getCountries(test = True)
+        currencies = self.getCurrencies(test = True)
+        customfields = self.getCustomFields(test = True)
+        emails = self.getEmails(top=top, test = True)
             
         # Try getEmail(), /v2.2/Emails/{id}
         pass
     
-        # Test getEvents(), /v2.2/Events
-        try:
-            events = self.getEvents(top=top)
-            print 'PASS: getEvents(), found ' + str(len(events)) + ' events.'
-        except:
-            print 'FAIL: getEvents()'
+        events = self.getEvents(top=top, test = True)
         
         # Test addEvent(), /2.1/Events
         try:
@@ -1028,7 +1000,7 @@ class Insightly():
         text = self.generateRequest('/Contacts/' + str(contact_id) + '/Tags', 'GET', '')
         return self.dictToList(json.loads(text))
         
-    def getContactTasks(self, contact_id, test = True):
+    def getContactTasks(self, contact_id, test = False):
         """
         Gets a list of the tasks attached to a contact, identified by its record locator. Returns a list of dictionaries.
         """
@@ -1046,15 +1018,26 @@ class Insightly():
             text = self.generateRequest('/Contacts/' + str(contact_id) + '/Tasks', 'GET', '')
             return self.dictToList(json.loads(text))
     
-    def getCountries(self):
+    def getCountries(self, test = False):
         """
         Gets a list of countries recognized by Insightly. Returns a list of dictionaries.
         """
-        text = self.generateRequest('/Countries', 'GET', '')
-        countries = json.loads(text)
-        return countries
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Countries', 'GET', '')
+                countries = json.loads(text)
+                print 'PASS: getCountries() found ' + str(len(countries)) + 'countries'
+                self.tests_passed += 1
+                return countries
+            except:
+                print 'FAIL: getCountries()'
+        else:
+            text = self.generateRequest('/Countries', 'GET', '')
+            countries = json.loads(text)
+            return countries
     
-    def getCurrencies(self, test = True):
+    def getCurrencies(self, test = False):
         """
         Gets a list of currencies recognized by Insightly. Returns a list of dictionaries.
         """
@@ -1066,15 +1049,25 @@ class Insightly():
                 self.tests_run += 1
                 self.tests_passed += 1
             except:
-                self.tests_run += 1s
+                self.tests_run += 1
         return currencies
     
-    def getCustomFields(self):
+    def getCustomFields(self, test = False):
         """
         Gets a list of custom fields, returns a list of dictionaries
         """
-        text = self.generateRequest('/CustomFields', 'GET', '')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/CustomFields', 'GET', '')
+                custom_fields = self.dictToList(json.loads(text))
+                self.tests_passed += 1
+                print 'PASS: getCustomFields() found ' + str(len(custom_fields)) + ' custom fields'
+            except:
+                print 'FAIL: getCustomFields()'
+        else:
+            text = self.generateRequest('/CustomFields', 'GET', '')
+            return self.dictToList(json.loads(text))
     
     def getCustomField(self, id):
         """
@@ -1083,15 +1076,27 @@ class Insightly():
         text = self.generateRequest('/CustomFields/' + str(id), 'GET', '')
         return json.loads(text)
     
-    def getEmails(self, top=None, skip=None, orderby=None, filters=None):
+    def getEmails(self, top=None, skip=None, orderby=None, filters=None, test = False):
         """
         Returns a list of emails for a resource id.
         
         This search method supports the OData operators: top, skip, orderby and filters
         """
-        querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=None)
-        text = self.generateRequest('/Emails' + querystring, 'GET','')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=None)
+                text = self.generateRequest('/Emails' + querystring, 'GET','')
+                emails = self.dictToList(json.loads(text))
+                self.tests_passed += 1
+                print 'PASS: getEmails() found ' + str(len(emails)) + ' emails'
+            except:
+                print 'FAIL: getEmails()'
+        else:
+            querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=None)
+            text = self.generateRequest('/Emails' + querystring, 'GET','')
+            return self.dictToList(json.loads(text))
+
         
     def getEmail(self, id):
         """
@@ -1161,7 +1166,7 @@ class Insightly():
         text = self.generateRequest('/Events/' + str(id), 'DELETE', '')
         return True
         
-    def getEvents(self, top=None, skip=None, orderby=None, filters=None):
+    def getEvents(self, top=None, skip=None, orderby=None, filters=None, test = False):
         """
         Gets a calendar of upcoming events.
         
@@ -1174,10 +1179,22 @@ class Insightly():
         
         List is returned as a list of dictionaries.
         """
-        querystring = self.ODataQuery('', top = top, skip=skip, orderby = orderby, filters = filters)
-        text = self.generateRequest('/Events' + querystring, 'GET', '')
-        return self.dictToList(json.loads(text))
-        
+        if test:
+            self.tests_run += 1
+            try:
+                querystring = self.ODataQuery('', top = top, skip=skip, orderby = orderby, filters = filters)
+                text = self.generateRequest('/Events' + querystring, 'GET', '')
+                events = self.dictToList(json.loads(text))
+                print 'PASS: getEvents() found ' + str(len(events)) + ' events'
+                self.tests_passed += 1
+                return events
+            except:
+                print 'FAIL: getEvents()'
+        else:
+            querystring = self.ODataQuery('', top = top, skip=skip, orderby = orderby, filters = filters)
+            text = self.generateRequest('/Events' + querystring, 'GET', '')
+            return self.dictToList(json.loads(text))
+
     def getEvent(self, id):
         """
         gets an individual event, identified by its record id
