@@ -1873,21 +1873,44 @@ class Insightly():
     # Following are methods related to Teams 
     # 
     
-    def getTeams(self, top=None, skip=None, orderby=None, filters=None):
+    def getTeams(self, top=None, skip=None, orderby=None, filters=None, test = False):
         """
         Gets a list of teams, returns a list of dictionaries
         """
-        querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=filters)
-        text = self.generateRequest('/Teams' + querystring, 'GET', '')
-        return json.loads(text)
+        if test:
+            self.tests_run += 1
+            try:
+                querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=filters)
+                text = self.generateRequest('/Teams' + querystring, 'GET', '')
+                teams = json.loads(text)
+                print 'PASS: getTeams() found ' + str(len(teams)) + ' teams'
+                self.tests_passed += 1
+                return teams
+            except:
+                print 'FAIL: getTeams()'
+        else:
+            querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=filters)
+            text = self.generateRequest('/Teams' + querystring, 'GET', '')
+            return json.loads(text)
 
-    def getTeam(self, id):
+    def getTeam(self, id, test = False):
         """
         Gets a team, returns a dictionary
         """
-        text = self.generateRequest('/Teams/' + str(id), 'GET', '')
-        return json.loads(text)
-    
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Teams/' + str(id), 'GET', '')
+                team = json.loads(text)
+                print 'PASS: getTeam()'
+                self.tests_passed += 1
+                return team
+            except:
+                print 'FAIL: getTeam()'
+        else:
+            text = self.generateRequest('/Teams/' + str(id), 'GET', '')
+            return json.loads(text)
+        
     def addTeam(self, team):
         """
         Add/update a team on Insightly.
@@ -1914,18 +1937,28 @@ class Insightly():
             else:
                 raise Exception('team must be a dictionary or \'sample\' (to obtain a sample object)')
     
-    def deleteTeam(self, id):
+    def deleteTeam(self, id, test = False):
         """
         Deletes a team, returns True if successful, or raises an exception
         """
-        text = self.generateRequest('/Teams/' + str(id), 'DELETE', '')
-        return True
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Teams/' + str(id), 'DELETE', '')
+                print 'PASS: deleteTeam()'
+                self.tests_passed += 1
+                return True
+            except:
+                print 'FAIL: deleteTeam()'
+        else:
+            text = self.generateRequest('/Teams/' + str(id), 'DELETE', '')
+            return True
         
     #
     # Following is a list of methods for accessing user information. These methods are read-only. 
     #
     
-    def getUsers(self, test = True):
+    def getUsers(self, test = False):
         """
         Gets a list of users for this account, returns a list of dictionaries
         """
@@ -1936,7 +1969,7 @@ class Insightly():
                 print 'PASS: getUsers() : found ' + len(users)
                 self.tests_run += 1
                 self.tests_passed += 1
-                return userss
+                return users
             except:
                 print 'FAIL: getUsers()'
                 self.tests_run += 1
@@ -1944,9 +1977,19 @@ class Insightly():
             text = self.generateRequest('/Users', 'GET', '')
             return json.loads(text)
     
-    def getUser(self, id):
+    def getUser(self, id, test = False):
         """
         Gets an individual user's details
         """
-        text = self.generateRequest('/Users/' + str(id), 'GET', '')
-        return json.loads(text)
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Users/' + str(id), 'GET', '')
+                user = json.loads(text)
+                print 'PASS: getUser()'
+                self.tests_passed += 1
+            except:
+                print 'FAIL: getUser()'
+        else:
+            text = self.generateRequest('/Users/' + str(id), 'GET', '')
+            return json.loads(text)
