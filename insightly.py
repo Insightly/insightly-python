@@ -130,7 +130,7 @@ class Insightly():
     Read operations via the API are generally quite straightforward, so if you get struck on a write operation, this is a good workaround,
     as you are probably just missing a required field or using an invalid element ID when referring to something such as a link to a contact.
     """
-    def __init__(self, apikey='', version='2.2'):
+    def __init__(self, apikey='', version='2.1'):
 	"""
 	Instantiates the class, logs in, and fetches the current list of users. Also identifies the account owner's user ID, which
 	is a required field for some actions. This is stored in the property Insightly.owner_id
@@ -187,48 +187,22 @@ class Insightly():
         # call methods in self test mode
         #
         
-        currencies = self.getCurrencies(test = True)
-        users = self.getUsers(test = True)
-        accounts = self.getAccount(test = True)
-        contact = self.getContacts(orderby = 'DATE_UPDATED_UTC desc', top = top, test = True)
+        currencies = self.getCurrencies(test = True)                    # get currencies
+        users = self.getUsers(test = True)                              # get users
+        accounts = self.getAccount(test = True)                         # get account/instance information
+        comments = self.getComments(test = True)                        # get comments
+        contact = self.getContacts(orderby = 'DATE_UPDATED_UTC desc', top = top, test = True)   # get test contact
         if contact is not None:
-            contact_id = contact['CONTACT_ID']
-            emails = self.getContactEmails(contact_id, test = True)
-            notes = self.getContactNotes(contact_id, test = True)
-            tasks = self.getContactTasks(contact_id, test = True)
-        
-        #
-        # left off here
-        #
-        
-            
-        # Test addContact(), /v2.2/Contacts
-        try:
-            contact = dict(
-                SALUTATION = 'Mr',
-                FIRST_NAME = 'Testy',
-                LAST_NAME = 'McTesterson',
-            )
-            contact = self.addContact(contact)
-            print "PASS: addContact()"
-            try:
-                self.deleteContact(contact['CONTACT_ID'])
-                print 'PASS: deleteContact()'
-            except:
-                print 'FAIL: deleteContact()'
-        except:
-            contact = None
-            print "FAIL: addContact()"
-        
-        countries = self.getCountries(test = True)
-        currencies = self.getCurrencies(test = True)
-        customfields = self.getCustomFields(test = True)
-        emails = self.getEmails(top=top, test = True)
-            
-        # Try getEmail(), /v2.2/Emails/{id}
-        pass
-    
-        events = self.getEvents(top=top, test = True)
+            contact_id = contact['CONTACT_ID']                      
+            emails = self.getContactEmails(contact_id, test = True)     # get emails attached to contact
+            notes = self.getContactNotes(contact_id, test = True)       # get notes attached to contact
+            tasks = self.getContactTasks(contact_id, test = True)       # get tasks attached to contact
+
+        contact = self.addContact(test=True)                            # test adding, updating and deleting a contact       
+        countries = self.getCountries(test = True)                      # get countries
+        customfields = self.getCustomFields(test = True)                # get custom fields
+        emails = self.getEmails(top=top, test = True)                   # get emails
+        events = self.getEvents(top=top, test = True)                   # get events
         
         # Test addEvent(), /2.1/Events
         try:
@@ -587,22 +561,42 @@ class Insightly():
                 text = self.generateRequest('/Accounts', 'GET', '')
             return json.loads(text)
     
-    def deleteComment(self, id):
+    def deleteComment(self, id, test = False):
         """
         Delete a comment, expects the comment's ID (unique record locator).
         """
-        text = self.generateRequest('/Comments/' + str(id), 'DELETE','')
-        return True
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Comments/' + str(id), 'DELETE','')
+                print 'PASS: deleteComment()'
+                self.tests_passed += 1
+                return True
+            except:
+                print 'FAIL: deleteComment()'
+        else:
+            text = self.generateRequest('/Comments/' + str(id), 'DELETE','')
+            return True
 
-    def getComments(self, id):
+    def getComments(self, id, test = False):
         """
         Gets comments for an object. Expects the parent object ID.
         """
         #
         # HTTP GET api.insight.ly/v2.2/Comments
         #
-        text = self.generateRequest('/Comments/' + str(id), 'GET', '')
-        return json.loads(text)
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Comments/' + str(id), 'GET', '')
+                comments = json.loads(text)
+                self.tests_passed += 1
+                print 'PASS: getComments() found ' + str(len(comments)) + ' comments'
+            except:
+                print 'FAIL: getComments()'
+        else:
+            text = self.generateRequest('/Comments/' + str(id), 'GET', '')
+            return json.loads(text)
     
     def updateComment(self, body, owner_user_id, comment_id=None):
         """
@@ -623,27 +617,56 @@ class Insightly():
         text = self.generateRequest('/Comments', 'PUT', urldata)
         return json.loads(text)
     
-    def addContact(self,  contact):
+    def addContact(self,  contact, test = False):
         """
         Add/update a contact on Insightly. The parameter contact should be a dictionary containing valid data fields
         for a contact, or the string 'sample' to request a sample object. When submitting a new contact, set the
         CONTACT_ID field to 0 or omit it.
         """
-        if type(contact) is str:
-            if contact == 'sample':
-                contacts = self.getContacts(top=1)
-                return contacts[0]
-            else:
-                raise Exception('contact must be a dictionary with valid contact data fields, or the string \'sample\' to request a sample object')
+        if test:
+            self.tests_run += 1
+            try:
+                contact = dict(
+                    SALUTATION = 'Mr',
+                    FIRST_NAME = 'Testy',
+                    LAST_NAME = 'McTesterson',
+                )
+                contact = self.addContact(contact)
+                print "PASS: addContact()"
+                self.tests_passed += 1
+                self.tests_run += 1
+                try:
+                    self.addContact(contact)
+                    print 'PASS: addContact(), update existing contact'
+                    self.tests_passed += 1
+                except:
+                    print 'FAIL: addContact(), update existing contact'
+                self.tests_run += 1
+                try:
+                    self.deleteContact(contact['CONTACT_ID'])
+                    print 'PASS: deleteContact()'
+                    self.tests_passed += 1
+                except:
+                    print 'FAIL: deleteContact()'
+            except:
+                contact = None
+                print "FAIL: addContact()"
         else:
-            if type(contact) is dict:
-                if contact.get('CONTACT_ID', 0) > 0:
-                    text = self.generateRequest('/Contacts', 'PUT', json.dumps(contact))
+            if type(contact) is str:
+                if contact == 'sample':
+                    contacts = self.getContacts(top=1)
+                    return contacts[0]
                 else:
-                    text = self.generateRequest('/Contacts', 'POST', json.dumps(contact))
-                return json.loads(text)
+                    raise Exception('contact must be a dictionary with valid contact data fields, or the string \'sample\' to request a sample object')
             else:
-                raise Exception('contact must be a dictionary with valid contact data fields, or the string \'sample\' to request a sample object')
+                if type(contact) is dict:
+                    if contact.get('CONTACT_ID', 0) > 0:
+                        text = self.generateRequest('/Contacts', 'PUT', json.dumps(contact))
+                    else:
+                        text = self.generateRequest('/Contacts', 'POST', json.dumps(contact))
+                    return json.loads(text)
+                else:
+                    raise Exception('contact must be a dictionary with valid contact data fields, or the string \'sample\' to request a sample object')
             
     def addContactAddress(self, contact_id, address):
         """
