@@ -237,74 +237,29 @@ class Insightly():
             
         notes = self.getNotes(test = True)                              # get notes    
             
-        # Test getOpportunities(), /v2.2/Opportunities
+        opportunities = self.getOpportunities(orderby='DATE_UPDATED_UTC desc', top=top, test = True)        # get opportunities
         try:
-            opportunities = self.getOpportunities(orderby='DATE_UPDATED_UTC desc', top=top)
-            print 'PASS: getOpportunities(), found ' + str(len(opportunities)) + ' opportunities.'
             opportunity = opportunities[0]
         except:
             opportunity = None
-            print 'FAIL: getOpportunities()'
             
-        # Test getOpportunityCategories(), /v2.2/OpportunityCategories
-        try:
-            categories = self.getOpportunityCategories()
-            print 'PASS: getOpportunityCategories(), found ' + str(len(categories)) + ' categories.'
-        except:
-            print 'FAIL: getOpportunityCategories()'
-            
-        # Test addOpportunityCategory()
-        try:
-            category = dict(
-                CATEGORY_NAME = 'Test Category',
-                ACTIVE = True,
-                BACKGROUND_COLOR = '000000',
-            )
-            category = self.addOpportunityCategory(category)
-            print 'PASS: addOpportunityCategory()'
-            self.deleteOpportunityCategory(category['CATEGORY_ID'])
-            print 'PASS: deleteOpportunityCategory()'
-        except:
-            print 'FAIL: addOpportunityCategory()'
-            print 'FAIL: deleteOpportunityCategory()'
+        categories = self.getOpportunityCategories(test = True)         # get opportunity categories
+        category = dict(
+            CATEGORY_NAME = 'Test Category',
+            ACTIVE = True,
+            BACKGROUND_COLOR = '000000',
+        )
+        category = self.addOpportunityCategory(category, test = True)   # add opportunity category
+        self.deleteOpportunityCategory(category['CATEGORY_ID'], test = True)
         
-        # Test getOpportunityEmails()
         if opportunity is not None:
-            try:
-                emails = self.getOpportunityEmails(opportunity['OPPORTUNITY_ID'])
-                print 'PASS: getOpportunityEmails(), found ' + str(len(emails)) + ' emails for random opportunity.'
-            except:
-                print 'FAIL: getOpportunityEmails()'
-                
-            # Test getOpportunityNotes()
-            
-            try:
-                notes = self.getOpportunityNotes(opportunity['OPPORTUNITY_ID'])
-                print 'PASS: getOpportunityNotes(), found ' + str(len(notes)) + ' notes for random opportunity.'
-            except:
-                print 'FAIL: getOpportunityNotes()'
+            emails = self.getOpportunityEmails(opportunity['OPPORTUNITY_ID'], test = True)
+            notes = self.getOpportunityNotes(opportunity['OPPORTUNITY_ID'], test = True)
+            tasks = self.getOpportunityTasks(opportunity['OPPORTUNITY_ID'], test = True)
+            history = self.getOpportunityStateHistory(opportunity['OPPORTUNITY_ID'], test = True)
         
-            # Test getOpportunityTasks()
-            try:
-                tasks = self.getOpportunityTasks(opportunity['OPPORTUNITY_ID'])
-                print 'PASS: getOpportunityTasks(), found ' + str(len(tasks)) + ' tasks for random opportunity.'
-            except:
-                print 'FAIL: getOpportunityTasks()'
+        reasons = self.getOpportunityStateReasons(test = True)
         
-            # Test getOpportunityStateHistory(), /v2.2/OpportunityStates
-            try:
-                states = self.getOpportunityStateHistory(opportunity['OPPORTUNITY_ID'])
-                print 'PASS: getOpportunityStateHistory(), found ' + str(len(states)) + ' states in history.'
-            except:
-                print 'FAIL: getOpportunityStateHistory()'
-            
-        # Test getOpportunityStateReasons(), /v2.2/OpportunityStateReasons
-        try:
-            reasons = self.getOpportunityStateReasons()
-            print 'PASS: getOpportunityStateReasons(), found ' + str(len(reasons)) + ' reasons.'
-        except:
-            print 'FAIL: getOpportunityStateReasons()'
-            
         # Test getOrganizations(), /v2.2/Organizations
         
         try:
@@ -1668,42 +1623,102 @@ class Insightly():
             text = self.generateRequest('/Opportunities' + querystring, 'GET', '')
             return self.dictToList(json.loads(text))
     
-    def getOpportunity(self, id):
+    def getOpportunity(self, id, test = False):
         """
         Gets an opportunity's details, identified by its record id, returns a dictionary
         """
-        text = self.generateRequest('/Opportunities/' + str(id), 'GET', '')
-        return json.loads(text)
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Opportunities/' + str(id), 'GET', '')
+                opportunity = json.loads(text)
+                print 'PASS: getOpportunity()'
+                self.tests_passed += 1
+                return opportunity
+            except:
+                print 'FAIL: getOpportunity()'
+        else:
+            text = self.generateRequest('/Opportunities/' + str(id), 'GET', '')
+            opportunity = json.loads(text)
+            return opportunity
     
-    def getOpportunityStateHistory(self, id):
+    def getOpportunityStateHistory(self, id, test = False):
         """
         Gets the history of states and reasons for an opportunity.
         """
-        text = self.generateRequest('/Opportunities/' + str(id) + '/StateHistory', 'GET', '')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Opportunities/' + str(id) + '/StateHistory', 'GET', '')
+                history = self.dictToList(json.loads(text))
+                print 'PASS: getOpportunityStateHistory()'
+                self.tests_passed += 1
+                return history
+            except:
+                print 'FAIL: getOpportunityStateHistory()'
+        else:
+            text = self.generateRequest('/Opportunities/' + str(id) + '/StateHistory', 'GET', '')
+            history = self.dictToList(json.loads(text))
+            return history
     
-    def getOpportunityEmails(self, id):
+    def getOpportunityEmails(self, id, test = False):
         """
         Gets the emails linked to an opportunity
         """
-        text = self.generateRequest('/Opportunities/' + str(id) + '/Emails', 'GET', '')
-        return self.dictToList(json.loads(text))
-    
-    def getOpportunityNotes(self, id):
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Opportunities/' + str(id) + '/Emails', 'GET', '')
+                emails = self.dictToList(json.loads(text))
+                print 'PASS: getOpportunityEmails()'
+                self.tests_passed += 1
+                return emails
+            except:
+                print 'FAIL: getOpportunityEmails()'
+        else:
+            text = self.generateRequest('/Opportunities/' + str(id) + '/Emails', 'GET', '')
+            emails = self.dictToList(json.loads(text))
+            return emails
+            
+    def getOpportunityNotes(self, id, test = False):
         """
         Gets the notes linked to an opportunity
         """
-        text = self.generateRequest('Opportunities/' + str(id) + '/Notes', 'GET', '')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('Opportunities/' + str(id) + '/Notes', 'GET', '')
+                notes = self.dictToList(json.loads(text))
+                print 'PASS: getOpportunityNotes()'
+                self.tests_passed += 1
+                return notes
+            except:
+                print 'FAIL: getOpportunityNotes()'
+        else:
+            text = self.generateRequest('Opportunities/' + str(id) + '/Notes', 'GET', '')
+            notes = self.dictToList(json.loads(text))
+            return notes
     
-    def getOpportunityTasks(self, id):
+    def getOpportunityTasks(self, id, test = False):
         """
         Gets the tasks linked to an opportunity
         """
-        text = self.generateRequest('Opportunities/' + str(id) + '/Tasks', 'GET', '')
-        return self.dictToList(json.loads(text))
-    
-    def addOpportunityCategory(self, category):
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('Opportunities/' + str(id) + '/Tasks', 'GET', '')
+                tasks = self.dictToList(json.loads(text))
+                self.tests_passed += 1
+                print 'PASS: getOpportunityTasks()'
+                return tasks
+            except:
+                print 'FAIL: getOpportunityTasks()'
+        else:
+            text = self.generateRequest('Opportunities/' + str(id) + '/Tasks', 'GET', '')
+            tasks = self.dictToList(json.loads(text))
+            return tasks
+        
+    def addOpportunityCategory(self, category, test = False):
         """
         Add/update an opportunity category.
         """
@@ -1714,39 +1729,100 @@ class Insightly():
             else:
                 raise Exception('category must be a dictionary, or \'sample\' to request a sample object')
         else:
-            if category.get('CATEGORY_ID', 0) > 0:
-                text = self.generateRequest('OpportunityCategories', 'PUT', json.dumps(category))
+            if test:
+                self.tests_run += 1
+                try:
+                    if category.get('CATEGORY_ID', 0) > 0:
+                        text = self.generateRequest('OpportunityCategories', 'PUT', json.dumps(category))
+                    else:
+                        text = self.generateRequest('OpportunityCategories', 'POST', json.dumps(category))
+                    category = json.loads(text)
+                    print 'PASS: addOpportunityCategory()'
+                    self.tests_passed += 1
+                    return category
+                except:
+                    print 'FAIL: addOpportunityCategory()'
             else:
-                text = self.generateRequest('OpportunityCategories', 'POST', json.dumps(category))
-            return json.loads(text)
+                if category.get('CATEGORY_ID', 0) > 0:
+                    text = self.generateRequest('OpportunityCategories', 'PUT', json.dumps(category))
+                else:
+                    text = self.generateRequest('OpportunityCategories', 'POST', json.dumps(category))
+                category = json.loads(text)
+                return category
     
-    def deleteOpportunityCategory(self, id):
+    def deleteOpportunityCategory(self, id, test = False):
         """
         Deletes an opportunity category. Returns True or raises an exception.
         """
-        text = self.generateRequest('/OpportunityCategories/' + str(id), 'DELETE', '')
-        return True
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/OpportunityCategories/' + str(id), 'DELETE', '')
+                print 'PASS: deleteOpportunityCategory()'
+                self.tests_passed += 1
+                return True
+            except:
+                print 'FAIL: deleteOpportunityCategory()'
+        else:
+            text = self.generateRequest('/OpportunityCategories/' + str(id), 'DELETE', '')
+            return True
     
-    def getOpportunityCategory(self, id):
+    def getOpportunityCategory(self, id, test = False):
         """
         Gets an opportunity category, identified by its record id.
         """
-        text = self.generateRequest('/OpportunityCategories/' + str(id), 'GET', '')
-        return json.loads(text)
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/OpportunityCategories/' + str(id), 'GET', '')
+                category = json.loads(text)
+                print 'PASS: getOpportunityCategory()'
+                self.tests_passed += 1
+                return category
+            except:
+                print 'FAIL: getOpportunityCategory()'
+        else:
+            text = self.generateRequest('/OpportunityCategories/' + str(id), 'GET', '')
+            category = json.loads(text)
+            return category
     
-    def getOpportunityCategories(self):
+    def getOpportunityCategories(self, test = False):
         """
         Gets a list of opportunity categories.
         """
-        text = self.generateRequest('/OpportunityCategories', 'GET', '')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/OpportunityCategories', 'GET', '')
+                categories = self.dictToList(json.loads(text))
+                print 'PASS: getOpportunityCategories()'
+                self.tests_passed += 1
+                return categories
+            except:
+                print 'FAIL: getOpportunityCategories()'
+        else:
+            text = self.generateRequest('/OpportunityCategories', 'GET', '')
+            categories = self.dictToList(json.loads(text))
+            return categories
     
-    def getOpportunityStateReasons(self):
+    def getOpportunityStateReasons(self, test = False):
         """
         Gets a list of opportunity state reasons, returns a list of dictionaries
         """
-        text = self.generateRequest('OpportunityStateReasons', 'GET', '')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('OpportunityStateReasons', 'GET', '')
+                reasons = self.dictToList(json.loads(text))
+                print 'PASS: getOpportunityStateReasons()'
+                self.tests_passed += 1
+                return reasons
+            except:
+                print 'FAIL: getOpportunityStateReasons()'
+        else:
+            text = self.generateRequest('OpportunityStateReasons', 'GET', '')
+            reasons = self.dictToList(json.loads(text))
+            return reasons
     
     def addOrganization(self, organization):
         """
