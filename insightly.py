@@ -140,7 +140,7 @@ class Insightly():
         if version == '2.2' or version == '2.1':
             self.alt_header = 'Basic '
             self.apikey = apikey
-            self.baseurl = 'https://api.insight.ly/' + version
+            self.baseurl = 'https://api.insight.ly/v' + version
             self.users = self.getUsers()
             self.version = version
             self.tests_run = 0
@@ -189,81 +189,49 @@ class Insightly():
         
         currencies = self.getCurrencies(test = True)                    # get currencies
         users = self.getUsers(test = True)                              # get users
+        user_id = users[0]['USER_ID']                                   # get the user ID for the first user on the instance
         accounts = self.getAccount(test = True)                         # get account/instance information
-        comments = self.getComments(test = True)                        # get comments
+        # comments = self.getComments(test = True)                      # get comments
         contact = self.getContacts(orderby = 'DATE_UPDATED_UTC desc', top = top, test = True)   # get test contact
         if contact is not None:
             contact_id = contact['CONTACT_ID']                      
             emails = self.getContactEmails(contact_id, test = True)     # get emails attached to contact
             notes = self.getContactNotes(contact_id, test = True)       # get notes attached to contact
             tasks = self.getContactTasks(contact_id, test = True)       # get tasks attached to contact
-
-        contact = self.addContact(test=True)                            # test adding, updating and deleting a contact       
+        contact = dict(
+            SALUTATION = 'Mr',
+            FIRST_NAME = 'Testy',
+            LAST_NAME = 'McTesterson',
+        )
+        contact = self.addContact(contact, test=True)                   # test adding, updating and deleting a contact       
         countries = self.getCountries(test = True)                      # get countries
         customfields = self.getCustomFields(test = True)                # get custom fields
         emails = self.getEmails(top=top, test = True)                   # get emails
         events = self.getEvents(top=top, test = True)                   # get events
-        
-        # Test addEvent(), /2.1/Events
-        try:
-            event = dict(
-                TITLE = 'Test Event',
-                LOCATION = 'Somewhere',
-                DETAILS = 'Details',
-                START_DATE_UTC = '2014-07-12 12:00:00',
-                END_DATE_UTC = '2014-07-12 13:00:00',
-                OWNER_USER_ID = user_id,
-                ALL_DAY = False,
-                PUBLICLY_VISIBLE = True,
-            )
-            event = self.addEvent(event)
-            print 'PASS: addEvent()'
-        except:
-            event = None
-            print 'FAIL: addEvent()'
-            
-        # Test deleteEvent(), /v2.2/Events
+        event = dict(
+            TITLE = 'Test Event',
+            LOCATION = 'Somewhere',
+            DETAILS = 'Details',
+            START_DATE_UTC = '2014-07-12 12:00:00',
+            END_DATE_UTC = '2014-07-12 13:00:00',
+            OWNER_USER_ID = user_id,
+            ALL_DAY = False,
+            PUBLICLY_VISIBLE = True,
+        )
+        event = self.addEvent(event, test = True)                       # add event
         if event is not None:
-            try:
-                self.deleteEvent(event['EVENT_ID'])
-                print "PASS: deleteEvent()"
-            except:
-                print "FAIL: deleteEvent()"
-                
-        # Test getFileCategories(), /v2.2/FileCategories
-        try:
-            categories = self.getFileCategories()
-            print 'PASS: getFileCategories(), found ' + str(len(categories)) + ' file categories.'
-        except:
-            print 'FAIL: getFileCategories()'
+            self.deleteEvent(event['EVENT_ID'], test = True)            # delete event
+        categories = self.getFileCategories(test = True)                # get file categories
+        category = dict(
+            CATEGORY_NAME = 'Test Category',
+            ACTIVE = True,
+            BACKGROUND_COLOR = '000000',
+        )
+        category = self.addFileCategory(category, test = True)          # add file category
+        if category is not None:
+            self.deleteFileCategory(category['CATEGORY_ID'])            # delete file category
             
-        # Test addFileCategory()
-        try:
-            category = dict(
-                CATEGORY_NAME = 'Test Category',
-                ACTIVE = True,
-                BACKGROUND_COLOR = '000000',
-            )
-            category = self.addFileCategory(category)
-            print 'PASS: addFileCategory()'
-        except:
-            category = None
-            print 'FAIL: addFileCategory()'
-            
-        try:
-            if category is not None:
-                self.deleteFileCategory(category['CATEGORY_ID'])
-                print 'PASS: deleteFileCategory()'
-        except:
-            print 'FAIL: deleteFileCategory()'
-        
-        # Test getNotes(), /v2.2/Notes
-        try:
-            notes = self.getNotes()
-            print 'PASS: getNotes(), found ' + str(len(notes)) + ' notes.'
-        except:
-            print 'FAIL: getNotes()'
-            
+        notes = self.getNotes(test = True)                              # get notes    
             
         # Test getOpportunities(), /v2.2/Opportunities
         try:
@@ -377,54 +345,38 @@ class Insightly():
         except:
             print 'FAIL: addOrganization()'\
             
-        # Test getPipelines(), /v2.2/Pipelines
-        try:
-            pipelines = self.getPipelines()
-            print 'PASS: getPipelines(), found ' + str(len(pipelines)) + ' pipelines'
-        except:
-            print 'FAIL: getPipelines()'
-            
-        try:
-            stages = self.getPipelineStages()
-            print 'PASS: getPipelineStages(), found ' + str(len(stages)) + ' pipeline stages'
-        except:
-            print 'FAIL: getPipelineStages()'
+        pipelines = self.getPipelines(test = True)
+        pipeline = self.getPipeline(pipelines[0]['PIPELINE_ID'], test = True)
+        stages = self.getPipelineStages(test = True)
+        stage = self.getPipelineStage(stages[0]['STAGE_ID'], test = True)
         
-        # Test getProjects(), /v2.2/Projects
-        try:
-            projects = self.getProjects(top=top, orderby='DATE_UPDATED_UTC desc')
+        projects = self.getProjects(top=top, orderby='DATE_UPDATED_UTC desc', test = True)
+        if projects is not None:
             project = projects[0]
             project_id = project['PROJECT_ID']
-            print 'PASS: getProjects(), found ' + str(len(projects)) + ' projects.'
-            # Test getProjectEmails()
-            try:
-                emails = self.getProjectEmails(project_id)
-                print 'PASS: getProjectEmails(), found ' + str(len(emails)) + ' emails for most recent project.'
-            except:
-                print 'FAIL: getProjectEmails()'
-            # Test getProjectNotes()
-            try:
-                notes = self.getProjectNotes(project_id)
-                print 'PASS: getProjectNotes(), found ' + str(len(notes)) + ' notes for most recent project.'
-            except:
-                print 'FAIL: getProjectNotes()'
-            # Test getProjectTasks()
-            try:
-                tasks = self.getProjectTasks(project_id)
-                print 'PASS: getProjectTasks(), found ' + str(len(tasks)) + ' tasks for most recent project.'
-            except:
-                print 'FAIL: getProjectTasks()'
-        except:
-            print 'FAIL: getProjects()'
+            emails = self.getProjectEmails(project_id, test = True)
+            notes = self.getProjectNotes(project_id, test = True)
+            tasks = self.getProjectTasks(project_id, test = True)
             
         categories = self.getProjectCategories(test = True)                     # get project categories
-        self.addProjectCategory(test = True)                                    # add/get/delete project category
+        category = dict(
+            CATEGORY_NAME = 'Test Category',
+            ACTIVE = True,
+            BACKGROUND_COLOR = '000000',
+        )
+        category = self.addProjectCategory(category, test = True)               # add project category
+        self.deleteProjectCategory(category['CATEGORY_ID'], test = True)        # delete project category
+        
         relationships = self.getRelationships(test = True)                      # get relationships
+        
         tasks = self.getTasks(top=top, orderby='DUE_DATE desc', test = True)    # get tasks
+        
         teams = self.getTeams(test = True)                                      # get teams
         if teams is not None:
             team = teams[0]
             team_members = self.getTeamMembers(team['TEAM_ID'], test = True)    # get team members
+            
+        print str(self.tests_passed) + ' out of ' + str(self.tests_run) + ' tests passed'
         
     def dictToList(self, data):
         """
@@ -473,7 +425,6 @@ class Insightly():
             raise Exception('parameter method must be GET|DELETE|PUT|UPDATE')
         # generate full URL from base url and relative url
         full_url = self.baseurl + url
-        
         request = urllib2.Request(full_url)
         if alt_auth is not None:
             request.add_header("Authorization", self.alt_header)
@@ -487,24 +438,9 @@ class Insightly():
             result = urllib2.urlopen(request, data)
         else:
             result = urllib2.urlopen(request)
-        if result.status_code == 200 or result.status_code == 201:
-            text = result.read()
-            return text
-        elif result.status_code == 400:
-            raise Exception('400 : Bad request')
-        elif result.status_code == 401:
-            raise Exception('401 : Authentication error')
-        elif result.status_code == 403:
-            raise Exception('403 : Forbidden / permission denied')
-        elif result.status_code == 404:
-            raise Exception('404 : Object not found')
-        elif result.status_code == 405:
-            raise Exception('405 : Method not supported')
-        elif result.status_code == 500:
-            raise Exception('500 : System error')
-        else:
-            raise Exception('Unknown error')
-    
+        text = result.read()
+        return text
+        
     def ODataQuery(self, querystring, top=None, skip=None, orderby=None, filters=None):
         """
         This helper function generates an OData compatible query string. It is used by many
@@ -548,11 +484,11 @@ class Insightly():
             try:
                 text = self.generateRequest('/Accounts', 'GET', '')
                 accounts = json.loads(text)
-                print 'PASS getAccount() : Found ' + len(accounts) + ' linked to this instance'
+                print 'PASS: getAccount() : Found ' + str(len(accounts)) + ' linked to this instance'
                 self.tests_run += 1
                 self.tests_passed += 1
             except:
-                print 'FAIL getAccount()'
+                print 'FAIL: getAccount()'
                 self.tests_run += 1
         else:
             if email is not None:
@@ -617,7 +553,7 @@ class Insightly():
         text = self.generateRequest('/Comments', 'PUT', urldata)
         return json.loads(text)
     
-    def addContact(self,  contact, test = False):
+    def addContact(self, contact, test = False):
         """
         Add/update a contact on Insightly. The parameter contact should be a dictionary containing valid data fields
         for a contact, or the string 'sample' to request a sample object. When submitting a new contact, set the
@@ -626,17 +562,12 @@ class Insightly():
         if test:
             self.tests_run += 1
             try:
-                contact = dict(
-                    SALUTATION = 'Mr',
-                    FIRST_NAME = 'Testy',
-                    LAST_NAME = 'McTesterson',
-                )
                 contact = self.addContact(contact)
                 print "PASS: addContact()"
                 self.tests_passed += 1
                 self.tests_run += 1
                 try:
-                    self.addContact(contact)
+                    contact = self.addContact(contact)
                     print 'PASS: addContact(), update existing contact'
                     self.tests_passed += 1
                 except:
@@ -746,7 +677,7 @@ class Insightly():
         Start following a contact
         """
         if self.version != '2.2':
-            raise Exception('method only support for version 2.2 API')
+            raise Exception('method only supported for version 2.2 API')
         text = self.generateRequest('/Contacts/' + str(contact_id) + '/Follow', 'POST', '')
         return True
     
@@ -765,14 +696,22 @@ class Insightly():
         text = self.generateRequest('/Contacts/' + str(contact_id) + '/Tags', 'POST', json.dumps(tags))
         return json.loads(text)
         
-    def deleteContact(self, contact_id):
+    def deleteContact(self, contact_id, test = False):
         """
         Deletes a comment, identified by its record id
         """
-        if self.version != '2.2':
-            raise Exception('method only supported for version 2.2 API')
-        text = self.generateRequest('/Contacts/' + str(contact_id), 'DELETE', '')
-        return True
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Contacts/' + str(contact_id), 'DELETE', '')
+                print 'PASS: deleteContact()'
+                self.tests_passed += 1
+                return True
+            except:
+                print 'FAIL: deleteContact()'
+        else:
+            text = self.generateRequest('/Contacts/' + str(contact_id), 'DELETE', '')
+            return True
     
     def deleteContactAddress(self, contact_id, address_id):
         """
@@ -877,24 +816,33 @@ class Insightly():
             try:
                 text = self.generateRequest('/Contacts' + querystring, 'GET', '')
                 contact = self.dictToList(json.loads(text))[0]
-                print 'PASS : getContacts()'
+                print 'PASS: getContacts()'
                 self.tests_passed += 1
                 return contact
             except:
-                print 'FAIL : getContacts()'
+                print 'FAIL: getContacts()'
                 return
         else:
             text = self.generateRequest('/Contacts' + querystring, 'GET', '')
             return self.dictToList(json.loads(text))
     
-    def getContact(self, contact_id):
+    def getContact(self, contact_id, test = False):
         """
         Gets a specific contact, identified by its record id
         """
-        # Do lazy exception handling, returns True if all goes well, otherwise raises whatever exception caused the issue
-        text = self.generateRequest('/Contacts/' + str(contact_id), 'GET','')
-        return json.loads(text)
-        
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Contacts/' + str(contact_id), 'GET','')
+                contact = json.loads(text)
+                print 'PASS: getContact()'
+                self.tests_passed += 1
+            except:
+                print 'FAIL: getContact()'
+        else:
+            text = self.generateRequest('/Contacts/' + str(contact_id), 'GET','')
+            return json.loads(text)
+
     def getContactAddresses(self, contact_id):
         """
         Get addresses linked to a contact
@@ -1079,23 +1027,43 @@ class Insightly():
             return self.dictToList(json.loads(text))
 
         
-    def getEmail(self, id):
+    def getEmail(self, id, test = False):
         """
         Returns an invidivual email, identified by its record locator id
         
         Returns a dictionary as a response or raises an exception
         """
-        text = self.generateRequest('/Emails/' + str(id), 'GET', '')
-        return json.loads(text)
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Emails/' + str(id), 'GET', '')
+                email = json.loads(text)
+                print 'PASS: getEmail()'
+                self.tests_passed += 1
+            except:
+                print 'FAIL: getEmail()'
+        else:
+            text = self.generateRequest('/Emails/' + str(id), 'GET', '')
+            return json.loads(text)
         
-    def deleteEmail(self,id):
+    def deleteEmail(self,id, test = False):
         """
         Deletes an individual email, identified by its record locator id
         
         Returns True or raises an exception
         """
-        text = self.generateRequest('/Emails/' + str(id), 'DELETE', '')
-        return True
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Emails/' + str(id), 'DELETE', '')
+                print 'PASS: deleteEmail()'
+                self.tests_passed += 1
+                return True
+            except:
+                print 'FAIL: deleteEmail()'
+        else:
+            text = self.generateRequest('/Emails/' + str(id), 'DELETE', '')
+            return True
     
     def getEmailComments(self, id):
         """
@@ -1120,9 +1088,9 @@ class Insightly():
         text = self.generateRequest('/Emails/' + str(id) + '/Comments', 'POST', urldata)
         return json.loads(text)
     
-    def addEvent(self, event):
+    def addEvent(self, event, test = False):
         """
-        Add/update an event in the calendar.
+        Add or update an event in the calendar.
         
         NOTE: owner_user_id is required, and must point to a valid Insightly user id, if not you will get
         a 400 (bad request) error.
@@ -1132,20 +1100,44 @@ class Insightly():
                 events = self.getEvents(top=1)
                 return events[0]
         elif type(event) is dict:
-            if event.get('EVENT_ID',0) > 0:
-                text = self.generateRequest('/v2.2/Events', 'PUT', json.dumps(event))
+            if test:
+                self.tests_run += 1
+                try:
+                    if event.get('EVENT_ID', 0) > 0:
+                        text = self.generateRequest('/v2.2/Events', 'PUT', json.dumps(event))
+                    else:
+                        text = self.generateRequest('/v2.2/Events', 'POST', json.dumps(event))
+                    event = json.loads(text)
+                    self.tests_passed += 1
+                    print 'PASS: addEvent()'
+                    return event
+                except:
+                    print 'FAIL: addEvent()'
             else:
-                text = self.generateRequest('/v2.2/Events', 'POST', json.dumps(event))
-            return json.loads(text)
+                if event.get('EVENT_ID', 0) > 0:
+                    text = self.generateRequest('/v2.2/Events', 'PUT', json.dumps(event))
+                else:
+                    text = self.generateRequest('/v2.2/Events', 'POST', json.dumps(event))
+                return json.loads(text)
         else:
             raise Exception('The parameter event should be a dictionary with valid fields for an event object, or the string \'sample\' to request a sample object.')
     
-    def deleteEvent(self, id):
+    def deleteEvent(self, id, test = False):
         """
         Deletes an event, identified by its record id
         """
-        text = self.generateRequest('/Events/' + str(id), 'DELETE', '')
-        return True
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Events/' + str(id), 'DELETE', '')
+                self.tests_passed += 1
+                print 'PASS: deleteEvent()'
+                return True
+            except:
+                print 'FAIL: deleteEvent()'
+        else:
+            text = self.generateRequest('/Events/' + str(id), 'DELETE', '')
+            return True
         
     def getEvents(self, top=None, skip=None, orderby=None, filters=None, test = False):
         """
@@ -1185,7 +1177,7 @@ class Insightly():
         text = self.generateRequest('/Events/' + str(id))
         json.loads(text)
     
-    def addFileCategory(self, category, dummy=False):
+    def addFileCategory(self, category, test=False):
         """
         Add/update a file category to your account. Expects a dictionary containing the category details.
         
@@ -1198,40 +1190,86 @@ class Insightly():
         if type(category) is not dict:
             raise Exception('category must be a dict')
         urldata = json.dumps(category)
-        if category.get('CATEGORY_ID',None) is not None:
-            text = self.generateRequest('/FileCategories', 'PUT', urldata)
+        if test:
+            self.tests_run += 1
+            try:
+                if category.get('CATEGORY_ID',None) is not None:
+                    text = self.generateRequest('/FileCategories', 'PUT', urldata)
+                else:
+                    text = self.generateRequest('/FileCategories', 'POST', urldata)
+                category = json.loads(text)
+                print 'PASS: addFileCategory()'
+                self.tests_passed += 1
+                return category
+            except:
+                print 'FAIL: addFileCategory()'
         else:
-            text = self.generateRequest('/FileCategories', 'POST', urldata)
-        return json.loads(text)
+            if category.get('CATEGORY_ID',None) is not None:
+                text = self.generateRequest('/FileCategories', 'PUT', urldata)
+            else:
+                text = self.generateRequest('/FileCategories', 'POST', urldata)
+            return json.loads(text)
     
-    def deleteFileCategory(self, id):
+    def deleteFileCategory(self, id, test = False):
         """
         Delete a file category, identified by its record id
         
         Returns True if successful or raises an exception
         """
-        text = self.generateRequest('/FileCategories/' + str(id), 'DELETE', '')
-        return True
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/FileCategories/' + str(id), 'DELETE', '')
+                self.tests_passed += 1
+                print 'PASS: deleteFileCategory()'
+                return True
+            except:
+                print 'FAIL: deleteFileCategory()'
+        else:
+            text = self.generateRequest('/FileCategories/' + str(id), 'DELETE', '')
+            return True
     
-    def getFileCategories(self):
+    def getFileCategories(self, test = False):
         """
         Gets a list of file categories
         
         Returns a list of dictionaries
         """
-        text = self.generateRequest('/FileCategories', 'GET', '')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/FileCategories', 'GET', '')
+                categories = self.dictToList(json.loads(text))
+                print 'PASS: getFileCategories() found ' + str(len(categories)) + ' file categories'
+                self.tests_passed += 1
+                return categories
+            except:
+                print 'FAIL: getFileCategories()'
+        else:
+            text = self.generateRequest('/FileCategories', 'GET', '')
+            return self.dictToList(json.loads(text))
         
-    def getFileCategory(self, id):
+    def getFileCategory(self, id, test = False):
         """
         Gets a file category, identified by its record id
         
         Returns a dictionary
         """
-        text = self.generateRequest('/FileCategories/' + str(id), 'GET', '')
-        json.loads(text)
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/FileCategories/' + str(id), 'GET', '')
+                category = json.loads(text)
+                print 'PASS: getFileCategory()'
+                self.tests_passed += 1
+                return category
+            except:
+                print 'FAIL: getFileCategory()'
+        else:
+            text = self.generateRequest('/FileCategories/' + str(id), 'GET', '')
+            return json.loads(text)
     
-    def addNote(self, note):
+    def addNote(self, note, test = False):
         """
         Add/update a note, where the parameter note is a dictionary withthe required fields. To obtain a sample object, just call
         
@@ -1247,22 +1285,47 @@ class Insightly():
                 return note[0]
             else:
                 raise Exception('note must be a dictionary with valid fields, or the string \'sample\' to request a sample object')
-        else:
-            if type(note) is dict:
+        elif type(note) is dict:
+            if test:
+                self.tests_run += 1
+                try:
+                    if note.get('NOTE_ID',0) > 0:
+                        text = self.generateRequest('/Notes', 'PUT', json.dumps(note))
+                    else:
+                        text = self.generateRequest('/Notes', 'POST', json.dumps(note))
+                    note = json.loads(text)
+                    self.tests_passed += 1
+                    print 'PASS: addNote()'
+                    return note
+                except:
+                    print 'FAIL: addNote()'
+            else:
                 if note.get('NOTE_ID',0) > 0:
                     text = self.generateRequest('/Notes', 'PUT', json.dumps(note))
                 else:
                     text = self.generateRequest('/Notes', 'POST', json.dumps(note))
                 return json.loads(text)
-    
-    def deleteNote(self, id):
+        else:
+            return
+        
+    def deleteNote(self, id, test = False):
         """
         Delete a note, identified by its record locator.
         """
-        text = self.generateRequest('/Notes/' + str(id), 'DELETE', '')
-        return True
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Notes/' + str(id), 'DELETE', '')
+                print 'PASS: deleteNote()'
+                self.tests_passed += 1
+                return True
+            except:
+                print 'FAIL: deleteNote()'
+        else:
+            text = self.generateRequest('/Notes/' + str(id), 'DELETE', '')
+            return True
     
-    def getNotes(self, top=None, skip=None, orderby=None, filters=None):
+    def getNotes(self, top=None, skip=None, orderby=None, filters=None, test = False):
         """
         Gets a list of notes created by the user, returns a list of dictionaries
         
@@ -1273,9 +1336,21 @@ class Insightly():
         orderby = order by statement (e.g. 'DATE_CREATED_UTC desc')
         filters = list of filter statements
         """
-        querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=filters)
-        text = self.generateRequest('/Notes' + querystring, 'GET', '')
-        return self.dictToList(json.loads(text))
+        if test:
+            querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=filters)
+            text = self.generateRequest('/Notes' + querystring, 'GET', '')
+            return self.dictToList(json.loads(text))
+        else:
+            self.tests_run += 1
+            try:
+                querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=filters)
+                text = self.generateRequest('/Notes' + querystring, 'GET', '')
+                notes = self.dictToList(json.loads(text))
+                print 'PASS: getNotes() found ' + str(len(notes)) + ' notes'
+                self.tests_passed += 1
+                return notes
+            except:
+                print 'FAIL: getNotes()'
         
     def getNote(self, id):
         """
@@ -1549,37 +1624,81 @@ class Insightly():
     # Following are methods for pipelines
     #
     
-    def getPipelines(self):
+    def getPipelines(self, test = False):
         """
         Gets a list of pipelines
         """
-        text = self.generateRequest('/Pipelines', 'GET', '')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Pipelines', 'GET', '')
+                pipelines = self.dictToList(json.loads(text))
+                print 'PASS: getPipelines() found ' + str(len(pipelines)) + ' pipelines'
+                self.tests_passed += 1
+                return pipelines
+            except:
+                print 'FAIL: getPipelines()'
+        else:
+            text = self.generateRequest('/Pipelines', 'GET', '')
+            return self.dictToList(json.loads(text))
+
     
-    def getPipeline(self, id):
+    def getPipeline(self, id, test = False):
         """
         Gets details for a pipeline, identified by its unique record id
         """
-        text = self.generateRequest('/Pipelines/' + str(id))
-        return json.loads(text)
-    
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Pipelines/' + str(id))
+                pipeline = json.loads(text)
+                self.tests_passed += 1
+                print 'PASS: getPipeline()'
+                return pipeline
+            except:
+                print 'FAIL: getPipeline()'
+        else:
+            text = self.generateRequest('/Pipelines/' + str(id))
+            return json.loads(text)
     #
     # Following are methods for obtaining pipeline stages
     #
     
-    def getPipelineStages(self):
+    def getPipelineStages(self, test = False):
         """
         Gets a list of pipeline stages
         """
-        text = self.generateRequest('/PipelineStages','GET','')
-        return self.dictToList(json.loads(text))
-    
-    def getPipelineStage(self, id):
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/PipelineStages','GET','')
+                stages = self.dictToList(json.loads(text))
+                print 'PASS: getPipelineStages() found ' + str(len(stages)) + ' stages'
+                self.tests_passed += 1
+                return stages
+            except:
+                print 'FAIL: getPipelineStages()'
+        else:
+            text = self.generateRequest('/PipelineStages','GET','')
+            return self.dictToList(json.loads(text))
+        
+    def getPipelineStage(self, id, test = False):
         """
         Gets a pipeline stage, identified by its unique record id
         """
-        text = self.generateRequest('/PipelineStages/' + str(id), 'GET','')
-        return json.loads(text)
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/PipelineStages/' + str(id), 'GET','')
+                stage = json.loads(text)
+                print 'PASS: getPipelineStage()'
+                self.tests_passed += 1
+                return stage
+            except:
+                print 'FAIL: getPipelineStage()'
+        else:
+            text = self.generateRequest('/PipelineStages/' + str(id), 'GET','')
+            return json.loads(text)
     
     #
     # Following are methods for managing project categories
@@ -1625,44 +1744,32 @@ class Insightly():
         Add/update a project category. The parameter category should be a dictionary containing the project category details, or
         the string 'sample' to request a sample object. To add a new project category, just set the CATEGORY_ID to 0 or omit it. 
         """
-        if test:
-            if type(category) is str:
-                if category == 'sample':
-                    categories = self.getProjectCategories()
-                    return categories[0]
-                else:
-                    raise Exception('category must be a dictionary, or \'sample\' to request a sample object')
+        if type(category) is str:
+            if category == 'sample':
+                categories = self.getProjectCategories()
+                return categories[0]
+            else:
+                raise Exception('category must be a dictionary, or \'sample\' to request a sample object')
+        else:
+            if test:
+                self.tests_run += 1
+                try:
+                    if category.get('CATEGORY_ID', 0) > 0:
+                        text = self.generateRequest('/ProjectCategories', 'PUT', json.dumps(category))
+                    else:
+                        text = self.generateRequest('/ProjectCategories', 'POST', json.dumps(category))
+                    category = json.loads(text)
+                    print 'PASS: addProjectCategory()'
+                    self.tests_passed += 1
+                    return category
+                except:
+                    print 'FAIL: addProjectCategory()'
             else:
                 if category.get('CATEGORY_ID', 0) > 0:
                     text = self.generateRequest('/ProjectCategories', 'PUT', json.dumps(category))
                 else:
                     text = self.generateRequest('/ProjectCategories', 'POST', json.dumps(category))
                 return json.loads(text)
-        else:
-            category = dict(
-                CATEGORY_NAME = 'Test Category',
-                ACTIVE = True,
-                BACKGROUND_COLOR = '000000',
-            )
-            self.tests_run += 1
-            try:
-                category = self.addProjectCategory(category)
-                print 'PASS: addProjectCategory()'
-                self.tests_passed += 1
-                
-            except:
-                print 'FAIL: addProjectCategory()'
-            if category is not None:
-                category_id = category.get('CATEGORY_ID',None)
-                if category_id is not None:
-                    category = self.getProjectCategory(category_id, test = True)
-                    self.deleteProjectCategory(category_id, test = True)
-                else:
-                    print 'FAIL: getProjectCategory()'
-                    print 'FAIL: deleteProjectCategory()'
-            else:
-                print 'FAIL: getProjectCategory()'
-                print 'FAIL: deleteProjectCategory()'
     
     def deleteProjectCategory(self, id, test = False):
         """
@@ -1717,7 +1824,7 @@ class Insightly():
         text = self.generateRequest('/Projects/' + str(id), 'GET', '')
         return json.loads(text)
     
-    def getProjects(self, top=None, skip=None, orderby=None, filters=None):
+    def getProjects(self, top=None, skip=None, orderby=None, filters=None, test = False):
         """
         Gets a list of projects, returns a list of dictionaries. This method supports the OData operators:
         
@@ -1726,30 +1833,75 @@ class Insightly():
         orderby = orderby clause, eg. orderby='DATE_UPDATED_UTC desc'
         filters = list of OData filter statements
         """
-        querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=filters)
-        text = self.generateRequest('/Projects' + querystring, 'GET', '')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=filters)
+                text = self.generateRequest('/Projects' + querystring, 'GET', '')
+                projects = self.dictToList(json.loads(text))
+                print 'PASS: getProjects() found ' + str(len(projects)) + ' projects'
+                self.tests_passed += 1
+                return projects
+            except:
+                print 'FAIL: getProjects()'
+        else:
+            querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=filters)
+            text = self.generateRequest('/Projects' + querystring, 'GET', '')
+            return self.dictToList(json.loads(text))
     
-    def getProjectEmails(self, id):
+    def getProjectEmails(self, id, test = False):
         """
         Gets a list of emails attached to a project, identified by its record id, returns a list of dictionaries
         """
-        text = self.generateRequest('/Projects/' + str(id) + '/Emails', 'GET', '')
-        return self.dictToList(json.loads(text))
-    
-    def getProjectNotes(self, id):
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Projects/' + str(id) + '/Emails', 'GET', '')
+                emails = self.dictToList(json.loads(text))
+                print 'PASS: getProjectEmails() found ' + str(len(emails)) + ' emails attached to project'
+                self.tests_passed += 1
+                return emails
+            except:
+                print 'FAIL: getProjectEmails()'
+        else:
+            text = self.generateRequest('/Projects/' + str(id) + '/Emails', 'GET', '')
+            return self.dictToList(json.loads(text))
+
+    def getProjectNotes(self, id, test = False):
         """
         Gets a list of notes attached to a project, identified by its record id, returns a list of dictionaries
         """
-        text = self.generateRequest('/Projects/' + str(id) + '/Notes', 'GET', '')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Projects/' + str(id) + '/Notes', 'GET', '')
+                notes = self.dictToList(json.loads(text))
+                print 'PASS: getProjectNotes() found ' + str(len(notes)) + ' notes attached to project'
+                self.tests_passed += 1
+                return notes
+            except:
+                print 'FAIL: getProjectNotes()'
+        else:
+            text = self.generateRequest('/Projects/' + str(id) + '/Notes', 'GET', '')
+            return self.dictToList(json.loads(text))
     
-    def getProjectTasks(self, id):
+    def getProjectTasks(self, id, test = False):
         """
         Gets a list of tasks attached to a project, identified by its record id, returns a list of dictionaries
         """
-        text = self.generateRequest('/Projects/' + str(id) + '/Tasks', 'GET', '')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Projects/' + str(id) + '/Tasks', 'GET', '')
+                tasks = self.dictToList(json.loads(text))
+                print 'PASS: getProjectTasks() found ' + str(len(tasks)) + ' tasks attached to project'
+                self.tests_passed += 1
+                return tasks
+            except:
+                print 'FAIL: getProjectTasks()'
+        else:
+            text = self.generateRequest('/Projects/' + str(id) + '/Tasks', 'GET', '')
+            return self.dictToList(json.loads(text))
     
     #
     # Following are methods related to relationships between contacts and organizations
@@ -2067,7 +2219,7 @@ class Insightly():
             try:
                 text = self.generateRequest('/Users', 'GET', '')
                 users = json.loads(text)
-                print 'PASS: getUsers() : found ' + len(users)
+                print 'PASS: getUsers() : found ' + str(len(users)) + ' users'
                 self.tests_run += 1
                 self.tests_passed += 1
                 return users
