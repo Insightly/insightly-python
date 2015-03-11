@@ -5,7 +5,7 @@
 # NOTE to .NET developers, it is best if you edit this file in a Python aware IDE. Komodo IDE is a good choice. .NET tends to break
 # indentation in Python fields, which will cause bugs.
 #
-# Python client library for v2.1 Insightly API
+# Python client library for v2.1/v2.2 Insightly API
 # Brian McConnell <brian@insight.ly>
 #
 
@@ -39,7 +39,7 @@ class Insightly():
     Simply include insightly.py in your project file, then do the following for to run a test suite:
    
     from insightly import Insightly
-    i = Insightly(apikey='your API key')
+    i = Insightly(apikey='your API key', version='2.2')
     users = i.test()
    
     This will run an automatic test suite against your Insightly account. If the methods you need all pass, you're good to go!
@@ -198,6 +198,10 @@ class Insightly():
             emails = self.getContactEmails(contact_id, test = True)     # get emails attached to contact
             notes = self.getContactNotes(contact_id, test = True)       # get notes attached to contact
             tasks = self.getContactTasks(contact_id, test = True)       # get tasks attached to contact
+        if self.version == '2.2':
+            addresses = self.getContactAddresses(contact_id, test=True) # get contact addresses
+            contactinfos = self.getContactContactInfos(contact_id, test=True)
+            events = self.getContactEvents(contact_id, test=True)       # get events linked to contact
         contact = dict(
             SALUTATION = 'Mr',
             FIRST_NAME = 'Testy',
@@ -439,7 +443,7 @@ class Insightly():
         else:
             result = urllib2.urlopen(request)
         text = result.read()
-        return text
+        return text    
         
     def ODataQuery(self, querystring, top=None, skip=None, orderby=None, filters=None):
         """
@@ -534,7 +538,7 @@ class Insightly():
             text = self.generateRequest('/Comments/' + str(id), 'GET', '')
             return json.loads(text)
     
-    def updateComment(self, body, owner_user_id, comment_id=None):
+    def updateComment(self, body, owner_user_id, comment_id=None, test = False):
         """
         Creates or updates a comment. If you are updating an existing comment, be sure to include the comment_id
         """
@@ -549,9 +553,22 @@ class Insightly():
         )
         if comment_id is not None and type(comment_id) is int:
             data['COMMENT_ID'] = comment_id
-        urldata = urllib.urlencode(data)
-        text = self.generateRequest('/Comments', 'PUT', urldata)
-        return json.loads(text)
+            
+        if test:
+            self.tests_run += 1
+            try:
+                urldata = urllib.urlencode(data)
+                text = self.generateRequest('/Comments', 'PUT', urldata)
+                comment = json.loads(text)
+                self.tests_passed += 1
+                print 'PASS: updateComment()'
+                return comment
+            except:
+                print 'FAIL: updateComment()'
+        else:
+            urldata = urllib.urlencode(data)
+            text = self.generateRequest('/Comments', 'PUT', urldata)
+            return json.loads(text)
     
     def addContact(self, contact, test = False):
         """
@@ -599,7 +616,7 @@ class Insightly():
                 else:
                     raise Exception('contact must be a dictionary with valid contact data fields, or the string \'sample\' to request a sample object')
             
-    def addContactAddress(self, contact_id, address):
+    def addContactAddress(self, contact_id, address, test = False):
         """
         Add/update an address linked to a contact in Insightly.
         """
@@ -609,18 +626,33 @@ class Insightly():
             # validate data
             at = string.lower(address.get('TYPE',''))
             if at == 'work' or at == 'home' or at == 'postal' or at == 'other':
-                address_id = address.get('ADDRESS_ID', None)
-                if address_id is not None:
-                    text = self.generateRequest('/Contacts/' + str(contact_id) + '/Addresses', 'PUT', json.dumps(address))
+                if test:
+                    self.tests_run += 1
+                    try:
+                        address_id = address.get('ADDRESS_ID', None)
+                        if address_id is not None:
+                            text = self.generateRequest('/Contacts/' + str(contact_id) + '/Addresses', 'PUT', json.dumps(address))
+                        else:
+                            text = self.generateRequest('/Contacts/' + str(contact_id) + '/Addresses', 'POST',json.dumps(address))
+                        address = json.loads(text)
+                        self.tests_passed += 1
+                        print 'PASS: addContactAddress()'
+                        return address
+                    except:
+                        print 'FAIL: addContactAddress()'
                 else:
-                    text = self.generateRequest('/Contacts/' + str(contact_id) + '/Addresses', 'POST',json.dumps(address))
-                return json.loads(text)
+                    address_id = address.get('ADDRESS_ID', None)
+                    if address_id is not None:
+                        text = self.generateRequest('/Contacts/' + str(contact_id) + '/Addresses', 'PUT', json.dumps(address))
+                    else:
+                        text = self.generateRequest('/Contacts/' + str(contact_id) + '/Addresses', 'POST',json.dumps(address))
+                    return json.loads(text)
             else:
                 raise Exception('TYPE must be home, work, postal or other')
         else:
             raise Exception('address must be a dictionary')
     
-    def addContactContactInfo(self, contact_id, contactinfo):
+    def addContactContactInfo(self, contact_id, contactinfo, test = False):
         """
         Add/update a contact info linked to a contact
         """
@@ -630,58 +662,116 @@ class Insightly():
             # validate data
             ct = string.lower(contactinfo.get('TYPE',''))
             if ct == 'phone' or ct == 'email' or ct == 'pager' or ct == 'fax' or ct == 'website' or ct == 'other':
-                contact_info_id = contactinfo.get('CONTACT_INFO_ID', None)
-                if contact_info_id is not None:
-                    text = self.generateRequest('/Contacts/' + str(contact_id) + '/ContactInfos', 'PUT', json.dumps(contactinfo))
+                if test:
+                    self.tests_run += 1
+                    try:
+                        contact_info_id = contactinfo.get('CONTACT_INFO_ID', None)
+                        if contact_info_id is not None:
+                            text = self.generateRequest('/Contacts/' + str(contact_id) + '/ContactInfos', 'PUT', json.dumps(contactinfo))
+                        else:
+                            text = self.generateRequest('/Contacts/' + str(contact_id) + '/ContactInfos', 'POST', json.dumps(contactinfo))
+                        contact_info = json.loads(text)
+                        print 'PASS: addContactContactInfo()'
+                        self.tests_passed += 1
+                        return contact_info
+                    except:
+                        print 'FAIL: addContactContactInfo()'
                 else:
-                    text = self.generateRequest('/Contacts/' + str(contact_id) + '/ContactInfos', 'POST', json.dumps(contactinfo))
-                return json.loads(text)
+                    contact_info_id = contactinfo.get('CONTACT_INFO_ID', None)
+                    if contact_info_id is not None:
+                        text = self.generateRequest('/Contacts/' + str(contact_id) + '/ContactInfos', 'PUT', json.dumps(contactinfo))
+                    else:
+                        text = self.generateRequest('/Contacts/' + str(contact_id) + '/ContactInfos', 'POST', json.dumps(contactinfo))
+                    return json.loads(text)
             else:
                 raise Exception('TYPE must be phone, email, pager, fax, website or other')
         else:
             raise Exception('contactinfo must be a dictionary')
         
-    def addContactEvent(self, contact_id, event):
+    def addContactEvent(self, contact_id, event, test = False):
         """
         Add an event to a contact
         """
         if self.version != '2.2':
             raise Exception('method only supported for version 2.2 API')
         if type(event) is dict:
-            event_id = event.get('EVENT_ID', None)
-            if event_id is not None:
-                text = self.generateRequest('/Contacts/' + str(contact_id) + '/Events', 'PUT', json.dumps(event))
+            if test:
+                self.tests_run += 1
+                try:
+                    event_id = event.get('EVENT_ID', None)
+                    if event_id is not None:
+                        text = self.generateRequest('/Contacts/' + str(contact_id) + '/Events', 'PUT', json.dumps(event))
+                    else:
+                        text = self.generateRequest('/Contacts/' + str(contact_id) + '/Events', 'POST', json.dumps(event))
+                    event = json.loads(text)
+                    print 'PASS: addContactEvent()'
+                    self.tests_passed += 1
+                    return event
+                except:
+                    print 'FAIL: addContactEvent()'
             else:
-                text = self.generateRequest('/Contacts/' + str(contact_id) + '/Events', 'POST', json.dumps(event))
+                event_id = event.get('EVENT_ID', None)
+                if event_id is not None:
+                    text = self.generateRequest('/Contacts/' + str(contact_id) + '/Events', 'PUT', json.dumps(event))
+                else:
+                    text = self.generateRequest('/Contacts/' + str(contact_id) + '/Events', 'POST', json.dumps(event))
+                event = json.loads(text)
+                return event
         else:
             raise Exception('event must be a dictionary')
         
-    def addContactFileAttachment(self, contact_id, file_attachment):
+    def addContactFileAttachment(self, contact_id, file_attachment, test = False):
         """
         Add/update a file attachment for a contact
         """
         if self.version != '2.2':
             raise Exception('method only supported for version 2.2 API')
         if type(file_attachment) is dict:
-            file_attachment_id = file_attachment.get('FILE_ATTACHMENT_ID', None)
-            if file_attachment_id is not None:
-                text = self.generateRequest('/Contacts/' + str(contact_id) + '/FileAttachments', 'PUT', json.dumps(file_attachment))
+            if test:
+                self.tests_run += 1
+                try:
+                    file_attachment_id = file_attachment.get('FILE_ATTACHMENT_ID', None)
+                    if file_attachment_id is not None:
+                        text = self.generateRequest('/Contacts/' + str(contact_id) + '/FileAttachments', 'PUT', json.dumps(file_attachment))
+                    else:
+                        text = self.generateRequest('/Contacts/' + str(contact_id) + '/FileAttachments', 'POST', json.dumps(file_attachment))
+                    file_attachment = json.loads(text)
+                    print 'PASS: addContactFileAttachment()'
+                    self.tests_passed += 1
+                    return file_attachment
+                except:
+                    print 'FAIL: addContactFileAttachment()'
             else:
-                text = self.generateRequest('/Contacts/' + str(contact_id) + '/FileAttachments', 'POST', json.dumps(file_attachment))
-            return json.loads(text)
+                file_attachment_id = file_attachment.get('FILE_ATTACHMENT_ID', None)
+                if file_attachment_id is not None:
+                    text = self.generateRequest('/Contacts/' + str(contact_id) + '/FileAttachments', 'PUT', json.dumps(file_attachment))
+                else:
+                    text = self.generateRequest('/Contacts/' + str(contact_id) + '/FileAttachments', 'POST', json.dumps(file_attachment))
+                file_attachment = json.loads(text)
+                return file_attachment
         else:
             raise Exception('file_attachment must be a dictionary')
         
-    def addContactFollow(self, contact_id):
+    def addContactFollow(self, contact_id, test = False):
         """
         Start following a contact
         """
         if self.version != '2.2':
             raise Exception('method only supported for version 2.2 API')
-        text = self.generateRequest('/Contacts/' + str(contact_id) + '/Follow', 'POST', '')
-        return True
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Contacts/' + str(contact_id) + '/Follow', 'POST', '')
+                print 'PASS: addContactFollow()'
+                self.tests_passed += 1
+                return True
+            except:
+                print 'FAIL: addContactFollow()'
+        else:
+            text = self.generateRequest('/Contacts/' + str(contact_id) + '/Follow', 'POST', '')
+            return True
     
-    def addContactTags(self, contact_id, tags):
+    def addContactTags(self, contact_id, tags, test = False):
         """
         Delete a tag(s) from a contact
         """
@@ -693,8 +783,19 @@ class Insightly():
             tags = string.split(tags,',')
         else:
             raise Exception('tags must either be a string or a list of strings')
-        text = self.generateRequest('/Contacts/' + str(contact_id) + '/Tags', 'POST', json.dumps(tags))
-        return json.loads(text)
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Contacts/' + str(contact_id) + '/Tags', 'POST', json.dumps(tags))
+                tags = json.loads(text)
+                print 'PASS: addContactTags()'
+                self.tests_passed += 1
+                return tags
+            except:
+                print 'FAIL: addContactTags()'
+        else:
+            text = self.generateRequest('/Contacts/' + str(contact_id) + '/Tags', 'POST', json.dumps(tags))
+            return json.loads(text)
         
     def deleteContact(self, contact_id, test = False):
         """
@@ -713,58 +814,109 @@ class Insightly():
             text = self.generateRequest('/Contacts/' + str(contact_id), 'DELETE', '')
             return True
     
-    def deleteContactAddress(self, contact_id, address_id):
+    def deleteContactAddress(self, contact_id, address_id, test = False):
         """
         Delete an address linked to a contact in Insightly.
         """
         if self.version != '2.2':
             raise Exception('method only supported for version 2.2 API')
-        text = self.generateRequest('/Contacts/' + str(xcontact_id) + '/Addresses/' + str(address_id), 'DELETE', '')
-        return True
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Contacts/' + str(xcontact_id) + '/Addresses/' + str(address_id), 'DELETE', '')
+                print 'PASS: deleteContactAddress()'
+                self.tests_passed += 1
+                return True
+            except:
+                print 'FAIL: deleteContactAddress()'
+        else:
+            text = self.generateRequest('/Contacts/' + str(xcontact_id) + '/Addresses/' + str(address_id), 'DELETE', '')
+            return True
     
-    def deleteContactContactInfo(self, contact_id, contact_info_id):
+    def deleteContactContactInfo(self, contact_id, contact_info_id, test = False):
         """
         Delete a contact info from a contact
         """
         if self.version != '2.2':
             raise Exception('method only supported for version 2.2 API')
-        text = self.generateRequest('/Contacts/' + str(contact_id) + '/ContactInfos/' + str(contact_info_id), 'DELETE', '')
-        return True
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Contacts/' + str(contact_id) + '/ContactInfos/' + str(contact_info_id), 'DELETE', '')
+                print 'PASS: deleteContactContactInfo()'
+                self.tests_passed += 1
+                return True
+            except:
+                print 'FAIL: deleteContactContactInfo()'
+        else:
+            text = self.generateRequest('/Contacts/' + str(contact_id) + '/ContactInfos/' + str(contact_info_id), 'DELETE', '')
+            return True
     
-    def deleteContactEvent(self, contact_id, event_id):
+    def deleteContactEvent(self, contact_id, event_id, test = False):
         """
         Delete an event from a contact
         """
         if self.version != '2.2':
             raise Exception('method only supported for version 2.2 API')
-        text = self.generateRequest('/Contacts/' + str(contact_id) + '/Events/' + str(event_id), 'DELETE', '')
-        return True
-    
-    def deleteContactFileAttachment(self, contact_id, file_attachment_id):
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Contacts/' + str(contact_id) + '/Events/' + str(event_id), 'DELETE', '')
+                print 'PASS: deleteContactEvent()'
+                self.tests_passed += 1
+                return True
+            except:
+                print 'FAIL: deleteContactEvent()'
+        else:
+            text = self.generateRequest('/Contacts/' + str(contact_id) + '/Events/' + str(event_id), 'DELETE', '')
+            return True
+        
+    def deleteContactFileAttachment(self, contact_id, file_attachment_id, test = False):
         """
         Delete a file attachment from a contact
         """
         if self.version != '2.2':
             raise Exception('method only supported for version 2.2 API')
-        text = self.generateRequest('/Contacts/' + str(contact_id) + '/FileAttachments/' + str(file_attachment_id), 'DELETE', '')
-        return True
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Contacts/' + str(contact_id) + '/FileAttachments/' + str(file_attachment_id), 'DELETE', '')
+                print 'PASS: deleteContactFileAttachment()'
+                self.tests_passed += 1
+                return True
+            except:
+                print 'FAIL: deleteContactFileAttachment()'
+        else:
+            text = self.generateRequest('/Contacts/' + str(contact_id) + '/FileAttachments/' + str(file_attachment_id), 'DELETE', '')
+            return True
     
-    def deleteContactFollow(self, contact_id):
+    def deleteContactFollow(self, contact_id, test = False):
         """
         Stop following a contact
         """
         if self.version != '2.2':
             raise Exception('method only supported for version 2.2 API')
-        text = self.generateRequest('/Contacts/' + str(contact_id) + '/Follow', 'DELETE','')
-        return True
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Contacts/' + str(contact_id) + '/Follow', 'DELETE','')
+                print 'PASS: deleteContactFollow()'
+                self.tests_passed += 1
+                return True
+            except:
+                print 'FAIL: deleteContactFollow()'
+        else:
+            text = self.generateRequest('/Contacts/' + str(contact_id) + '/Follow', 'DELETE','')
+            return True
     
-    def deleteContactTags(self, contact_id, tag):
+    def deleteContactTags(self, contact_id, tag, test = False):
         """
         Delete tags from a contact
         """
         if self.version != '2.2':
             raise Exception('method only supported for version 2.2 API')
         pass
+        # TODO: talk to Patrick about expected behavior for this endpoint
     
     def getContacts(self, ids=None, email=None, tag=None, filters=None, top=None, skip=None, orderby=None, test = False):
         """
@@ -843,24 +995,48 @@ class Insightly():
             text = self.generateRequest('/Contacts/' + str(contact_id), 'GET','')
             return json.loads(text)
 
-    def getContactAddresses(self, contact_id):
+    def getContactAddresses(self, contact_id, test = False):
         """
         Get addresses linked to a contact
         """
         if self.version != '2.2':
             raise Exception('method only supported for version 2.2 API')
-        text = self.generateRequest('/Contacts/' + str(contact_id) + '/Addresses', 'GET', '')
-        return json.loads(text)
+        if test:
+            self.tests_run += 1
+            try:            
+                text = self.generateRequest('/Contacts/' + str(contact_id) + '/Addresses', 'GET', '')
+                addresses = self.dictToList(json.loads(text))
+                print 'PASS: getContactAddresses()'
+                self.tests_passed += 1
+                return addresses
+            except:
+                print 'FAIL: getContactAddresses()'
+        else:
+            text = self.generateRequest('/Contacts/' + str(contact_id) + '/Addresses', 'GET', '')
+            addresses = self.dictToList(json.loads(text))
+            return addresses
     
-    def getContactContactInfos(self, contact_id):
+    def getContactContactInfos(self, contact_id, test = False):
         """
         Get ContactInfos linked to a contact
         """
         if self.version != '2.2':
             raise Exception('method only supported for version 2.2 API')
-        text = self.generateRequest('/Contacts/' + str(contact_id) + '/ContactInfos', 'GET', '')
-        return json.loads(text)
-        
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Contacts/' + str(contact_id) + '/ContactInfos', 'GET', '')
+                contactinfos = self.dictToList(json.loads(text))
+                print 'PASS: getContactContactInfos()'
+                self.tests_passed += 1
+                return contactinfos
+            except:
+                print 'FAIL: getContactContactInfos()'
+        else:
+            text = self.generateRequest('/Contacts/' + str(contact_id) + '/ContactInfos', 'GET', '')
+            contactinfos = self.dictToList(json.loads(text))
+            return contactinfos
+
     def getContactEmails(self, contact_id, test = False):
         """
         Gets emails for a contact, identified by its record locator, returns a list of dictionaries
@@ -882,25 +1058,50 @@ class Insightly():
                 print 'FAIL: getContactEmails()'
         else:
             text = self.generateRequest('/Contacts/' + str(contact_id) + '/Emails', 'GET', '')
-            return self.dictToList(json.loads(text))
-    
-    def getContactEvents(self, contact_id):
+            emails = self.dictToList(json.loads(text))
+            return emails
+        
+    def getContactEvents(self, contact_id, test = False):
         """
         Gets events linked to a contact
         """
         if self.version != '2.2':
             raise Exception('method only supported for version 2.2 API')
-        text = self.generateRequest('/Contacts/' + str(contact_id) + '/Events', 'GET', '')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Contacts/' + str(contact_id) + '/Events', 'GET', '')
+                events = self.dictToList(json.loads(text))
+                print 'PASS: getContactEvents()'
+                self.tests_passed += 1
+                return events
+            except:
+                print 'FAIL: getContactEvents()'
+        else:
+            text = self.generateRequest('/Contacts/' + str(contact_id) + '/Events', 'GET', '')
+            events = self.dictToList(json.loads(text))
+            return events
     
-    def getContactFileAttachments(self, contact_id):
+    def getContactFileAttachments(self, contact_id, test = False):
         """
         Gets files attached to a contact
         """
         if self.version != '2.2':
             raise Exception('method only supported for version 2.2 API')
-        text = self.generateRequest('/Contacts/' + str(contact_id) + '/FileAttachments', 'GET', '')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Contacts/' + str(contact_id) + '/FileAttachments', 'GET', '')
+                file_attachments = self.dictToList(json.loads(text))
+                print 'PASS: getContactFileAttachments()'
+                self.tests_passed += 1
+                return file_attachments
+            except:
+                print 'FAIL: getContactFileAttachments()'
+        else:
+            text = self.generateRequest('/Contacts/' + str(contact_id) + '/FileAttachments', 'GET', '')
+            file_attachments = self.dictToList(json.loads(text))
+            return file_attachments
     
     def getContactNotes(self, contact_id, test = False):
         """
@@ -918,16 +1119,30 @@ class Insightly():
                 print 'FAIL: getContactNotes()'
         else:
             text = self.generateRequest('/Contacts/' + str(contact_id) + '/Notes', 'GET', '')
-            return self.dictToList(json.loads(text))
+            notes = self.dictToList(json.loads(text))
+            return notes
     
-    def getContactTags(self, contact_id):
+    def getContactTags(self, contact_id, test = False):
         """
         Gets a list of tags linked to a contact
         """
         if self.version != '2.2':
             raise Exception('method only supported for version 2.2 API')
-        text = self.generateRequest('/Contacts/' + str(contact_id) + '/Tags', 'GET', '')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Contacts/' + str(contact_id) + '/Tags', 'GET', '')
+                tags = self.dictToList(json.loads(text))
+                print 'PASS: getContactTags()'
+                self.tests_passed += 1
+                return tags
+            except:
+                print 'FAIL: getContactTags()'
+        else:
+            text = self.generateRequest('/Contacts/' + str(contact_id) + '/Tags', 'GET', '')
+            tags = self.dictToList(json.loads(text))
+            return tags
+
         
     def getContactTasks(self, contact_id, test = False):
         """
