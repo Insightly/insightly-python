@@ -154,7 +154,7 @@ class Insightly():
                     print 'The account owner is ' + self.owner_name + ' [' + str(self.owner_id) + '] at ' + self.owner_email
                     break
         else:
-            raise Exception('Python library only supports v2.1 or v2.2 (default) APIs')
+            raise Exception('Python library only supports v2.1 or v2.2 APIs')
                 
     def getMethods(self):
         """
@@ -165,9 +165,8 @@ class Insightly():
     
     def test(self, top=None):
         """
-        TODO: make this a lot less verbose, move test script into methods themselves
-        
-        This helper function runs a test suite against the API to verify the API and client side methods are working normally. This may not reveal all corner cases, but will do a basic sanity check against the system.
+        This helper function runs a test suite against the API to verify the API and client side methods are working normally.
+        This may not reveal all corner cases, but will do a basic sanity check against the system.
         
         USAGE:
         
@@ -187,7 +186,6 @@ class Insightly():
         # call methods in self test mode
         #
         
-        currencies = self.getCurrencies(test = True)                    # get currencies
         users = self.getUsers(test = True)                              # get users
         user_id = users[0]['USER_ID']                                   # get the user ID for the first user on the instance
         accounts = self.getAccount(test = True)                         # get account/instance information
@@ -209,9 +207,20 @@ class Insightly():
         )
         contact = self.addContact(contact, test=True)                   # test adding, updating and deleting a contact       
         countries = self.getCountries(test = True)                      # get countries
-        customfields = self.getCustomFields(test = True)                # get custom fields
+        currencies = self.getCurrencies(test = True)                    # get currencies
+        custom_fields = self.getCustomFields(test = True)                # get custom fields
+        if len(custom_fields) > 0:
+            custom_field = custom_fields[0]
+            custom_field = self.getCustomField(custom_field['CUSTOM_FIELD_ID'], test = True)
         emails = self.getEmails(top=top, test = True)                   # get emails
+        if len(emails) > 0:
+            email = emails[0]
+            comment = self.addCommentToEmail(email['EMAIL_ID'], 'This is a test', user_id, test = True)
+            self.deleteComment(comment['COMMENT_ID'], test = True)
         events = self.getEvents(top=top, test = True)                   # get events
+        if len(events) > 0:
+            event = events[0]
+            event = self.getEvent(event['EVENT_ID'], test = True)
         event = dict(
             TITLE = 'Test Event',
             LOCATION = 'Somewhere',
@@ -235,14 +244,16 @@ class Insightly():
         if category is not None:
             self.deleteFileCategory(category['CATEGORY_ID'])            # delete file category
             
-        notes = self.getNotes(test = True)                              # get notes    
+        #
+        # TODO: add Leads related endpoints
+        #
             
-        opportunities = self.getOpportunities(orderby='DATE_UPDATED_UTC desc', top=top, test = True)        # get opportunities
-        try:
-            opportunity = opportunities[0]
-        except:
-            opportunity = None
-            
+        notes = self.getNotes(test = True)                              # get notes
+        if notes is not None:
+            note = notes[0]
+            note = self.getNote(note['NOTE_ID'], test = True)
+            comments = self.getNoteComments(note['NOTE_ID'], test = True)
+
         categories = self.getOpportunityCategories(test = True)         # get opportunity categories
         category = dict(
             CATEGORY_NAME = 'Test Category',
@@ -252,57 +263,42 @@ class Insightly():
         category = self.addOpportunityCategory(category, test = True)   # add opportunity category
         self.deleteOpportunityCategory(category['CATEGORY_ID'], test = True)
         
-        if opportunity is not None:
+        opportunities = self.getOpportunities(orderby='DATE_UPDATED_UTC desc', top=top, test = True)        # get opportunities
+        if opportunities is not None:
+            opportunity = opportunities[0]
             emails = self.getOpportunityEmails(opportunity['OPPORTUNITY_ID'], test = True)
             notes = self.getOpportunityNotes(opportunity['OPPORTUNITY_ID'], test = True)
             tasks = self.getOpportunityTasks(opportunity['OPPORTUNITY_ID'], test = True)
             history = self.getOpportunityStateHistory(opportunity['OPPORTUNITY_ID'], test = True)
+            #
+            # TODO: add v2.2 endpoints, test CRUD operations on child objects
+            #
+        
+        opportunity = dict(
+            OPPORTUNITY_NAME = 'This is a test',
+            OPPORTUNITY_DETAILS = 'This is a test test test',
+            OPPORTUNITY_STATE = 'OPEN',
+        )
+        
+        opportunity = self.addOpportunity(opportunity, test = True)
+        self.deleteOpportunity(opportunity['OPPORTUNITY_ID'], test = True)
         
         reasons = self.getOpportunityStateReasons(test = True)
         
-        # Test getOrganizations(), /v2.2/Organizations
-        
-        try:
-            organizations = self.getOrganizations(top=top, orderby='DATE_UPDATED_UTC desc')
+        organizations = self.getOrganizations(top=top, orderby='DATE_UPDATED_UTC desc', test = True)
+        if organizations is not None:
             organization = organizations[0]
-            print 'PASS: getOrganizations(), found ' + str(len(organizations))
-            
-            # Test getOrganizationEmails()
-            try:
-                emails = self.getOrganizationEmails(organization['ORGANISATION_ID'])
-                print 'PASS: getOrganizationEmails(), found ' + str(len(emails)) + ' emails for most recent organization.'
-            except:
-                print 'FAIL: getOrganizationEmails()'
-            # Test getOrganizationNotes()
-            try:
-                notes = self.getOrganizationNotes(organization['ORGANISATION_ID'])
-                print 'PASS: getOrganizationNotes(), found ' + str(len(notes)) + ' notes for most recent organization.'
-            except:
-                print 'FAIL: getOrganizationNotes()'
-            # Test getOrganizationTasks()
-            try:
-                tasks = self.getOrganizationTasks(organization['ORGANISATION_ID'])
-                print 'PASS: getOrganizationTasks(), found ' + str(len(tasks)) + ' tasks for most recent organization.'
-            except:
-                print 'FAIL: getOrganizationTasks()'
-        except:
-            print 'FAIL: getOrganizations()'
-            
-        # Test addOrganization()
-        try:
-            organization = dict(
-                ORGANISATION_NAME = 'Foo Corp',
-                BACKGROUND = 'Details',
-            )
-            organization = self.addOrganization(organization)
-            print 'PASS: addOrganization()'
-            try:
-                self.deleteOrganization(organization['ORGANISATION_ID'])
-                print 'PASS: deleteOrganization()'
-            except:
-                print 'FAIL: deleteOrganization()'
-        except:
-            print 'FAIL: addOrganization()'\
+            if organization is not None:
+                emails = self.getOrganizationEmails(organization['ORGANISATION_ID'], test = True)
+                notes = self.getOrganizationNotes(organization['ORGANISATION_ID'], test = True)
+                tasks = self.getOrganizationTasks(organization['ORGANISATION_ID'], test = True)
+                
+        organization = dict(
+            ORGANISATION_NAME = 'Foo Corp',
+            BACKGROUND = 'Details',
+        )
+        organization = self.addOrganization(organization, test = True)
+        self.deleteOrganization(organization['ORGANIZATION_ID'], test = True)
             
         pipelines = self.getPipelines(test = True)
         pipeline = self.getPipeline(pipelines[0]['PIPELINE_ID'], test = True)
@@ -316,6 +312,9 @@ class Insightly():
             emails = self.getProjectEmails(project_id, test = True)
             notes = self.getProjectNotes(project_id, test = True)
             tasks = self.getProjectTasks(project_id, test = True)
+            #
+            # TODO: add v2.2 endpoints, test CRUD operations on child objects
+            #
             
         categories = self.getProjectCategories(test = True)                     # get project categories
         category = dict(
@@ -371,7 +370,8 @@ class Insightly():
         This method is used by other helper functions to generate HTTPS requests and parse
         server responses. This will minimize the amount of work developers need to do to
         integrate with the Insightly API, and will also eliminate common sources of errors
-        such as authentication issues and malformed requests
+        such as authentication issues and malformed requests. Uses the urllib2 standard
+        library, so it is not dependent on third party libraries like Requests
         """
         if type(url) is not str: raise Exception('url must be a string')
         if type(method) is not str: raise Exception('method must be a string')
@@ -405,6 +405,9 @@ class Insightly():
         This helper function generates an OData compatible query string. It is used by many
         of the search functions to enable users to filter, page and order recordsets.
         """
+        #
+        # TODO: double check that this has been implemented correctly
+        #
         if type(querystring) is str:
             if top is not None:
                 if querystring == '':
@@ -1126,7 +1129,7 @@ class Insightly():
             try:
                 text = self.generateRequest('/Countries', 'GET', '')
                 countries = json.loads(text)
-                print 'PASS: getCountries() found ' + str(len(countries)) + 'countries'
+                print 'PASS: getCountries() found ' + str(len(countries)) + ' countries'
                 self.tests_passed += 1
                 return countries
             except:
@@ -1144,7 +1147,7 @@ class Insightly():
         currencies = json.loads(text)
         if test:
             try:
-                print 'PASS: found ' + str(len(currencies)) + ' supported currencies.'
+                print 'PASS: getCurrencies() found ' + str(len(currencies)) + ' supported currencies.'
                 self.tests_run += 1
                 self.tests_passed += 1
             except:
@@ -1162,18 +1165,32 @@ class Insightly():
                 custom_fields = self.dictToList(json.loads(text))
                 self.tests_passed += 1
                 print 'PASS: getCustomFields() found ' + str(len(custom_fields)) + ' custom fields'
+                return custom_fields
             except:
                 print 'FAIL: getCustomFields()'
         else:
             text = self.generateRequest('/CustomFields', 'GET', '')
-            return self.dictToList(json.loads(text))
+            custom_fields = self.dictToList(json.loads(text))
+            return custom_fields
     
-    def getCustomField(self, id):
+    def getCustomField(self, id, test = False):
         """
         Gets details for a custom field, identified by its record id. Returns a dictionary
         """
-        text = self.generateRequest('/CustomFields/' + str(id), 'GET', '')
-        return json.loads(text)
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/CustomFields/' + str(id), 'GET', '')
+                custom_field = json.loads(text)
+                print 'PASS: getCustomField()'
+                self.tests_passed += 1
+                return custom_field
+            except:
+                print 'FAIL: getCustomField()'
+        else:
+            text = self.generateRequest('/CustomFields/' + str(id), 'GET', '')
+            custom_field = json.loads(text)
+            return custom_field            
     
     def getEmails(self, top=None, skip=None, orderby=None, filters=None, test = False):
         """
@@ -1189,13 +1206,14 @@ class Insightly():
                 emails = self.dictToList(json.loads(text))
                 self.tests_passed += 1
                 print 'PASS: getEmails() found ' + str(len(emails)) + ' emails'
+                return emails
             except:
                 print 'FAIL: getEmails()'
         else:
             querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=None)
             text = self.generateRequest('/Emails' + querystring, 'GET','')
-            return self.dictToList(json.loads(text))
-
+            emails = self.dictToList(json.loads(text))
+            return emails
         
     def getEmail(self, id, test = False):
         """
@@ -1210,11 +1228,13 @@ class Insightly():
                 email = json.loads(text)
                 print 'PASS: getEmail()'
                 self.tests_passed += 1
+                return email
             except:
                 print 'FAIL: getEmail()'
         else:
             text = self.generateRequest('/Emails/' + str(id), 'GET', '')
-            return json.loads(text)
+            email = json.loads(text)
+            return email
         
     def deleteEmail(self,id, test = False):
         """
@@ -1235,14 +1255,26 @@ class Insightly():
             text = self.generateRequest('/Emails/' + str(id), 'DELETE', '')
             return True
     
-    def getEmailComments(self, id):
+    def getEmailComments(self, id, test = False):
         """
         Returns the comments attached to an email, identified by its record locator id
         """
-        text = self.generateRequest('/Emails/' + str(id) + '/Comments')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Emails/' + str(id) + '/Comments')
+                comments = self.dictToList(json.loads(text))
+                print 'PASS: getEmailComments() found ' + str(len(comments)) + ' comments attached to a test email'
+                self.tests_passed += 1
+                return comments
+            except:
+                print 'FAIL: getEmailComments()'
+        else:
+            text = self.generateRequest('/Emails/' + str(id) + '/Comments')
+            comments = self.dictToList(json.loads(text))
+            return comments
         
-    def addCommentToEmail(self, id, body, owner_user_id):
+    def addCommentToEmail(self, id, body, owner_user_id, test = False):
         """
         Adds a comment to an existing email, identified by its record locator id.
         
@@ -1255,8 +1287,20 @@ class Insightly():
             OWNER_USER_ID = owner_user_id,
         )
         urldata = json.dumps(data)
-        text = self.generateRequest('/Emails/' + str(id) + '/Comments', 'POST', urldata)
-        return json.loads(text)
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Emails/' + str(id) + '/Comments', 'POST', urldata)
+                comment = json.loads(text)
+                print 'PASS: addCommentToEmail()'
+                self.tests_passed += 1
+                return comment
+            except:
+                print 'FAIL: addCommentToEmail()'
+        else:
+            text = self.generateRequest('/Emails/' + str(id) + '/Comments', 'POST', urldata)
+            comment = json.loads(text)
+            return comment
     
     def addEvent(self, event, test = False):
         """
@@ -1274,9 +1318,9 @@ class Insightly():
                 self.tests_run += 1
                 try:
                     if event.get('EVENT_ID', 0) > 0:
-                        text = self.generateRequest('/v2.2/Events', 'PUT', json.dumps(event))
+                        text = self.generateRequest('/Events', 'PUT', json.dumps(event))
                     else:
-                        text = self.generateRequest('/v2.2/Events', 'POST', json.dumps(event))
+                        text = self.generateRequest('/Events', 'POST', json.dumps(event))
                     event = json.loads(text)
                     self.tests_passed += 1
                     print 'PASS: addEvent()'
@@ -1285,9 +1329,9 @@ class Insightly():
                     print 'FAIL: addEvent()'
             else:
                 if event.get('EVENT_ID', 0) > 0:
-                    text = self.generateRequest('/v2.2/Events', 'PUT', json.dumps(event))
+                    text = self.generateRequest('/Events', 'PUT', json.dumps(event))
                 else:
-                    text = self.generateRequest('/v2.2/Events', 'POST', json.dumps(event))
+                    text = self.generateRequest('/Events', 'POST', json.dumps(event))
                 return json.loads(text)
         else:
             raise Exception('The parameter event should be a dictionary with valid fields for an event object, or the string \'sample\' to request a sample object.')
@@ -1338,14 +1382,26 @@ class Insightly():
             text = self.generateRequest('/Events' + querystring, 'GET', '')
             return self.dictToList(json.loads(text))
 
-    def getEvent(self, id):
+    def getEvent(self, id, test = False):
         """
         gets an individual event, identified by its record id
         
         Returns a dictionary
         """
-        text = self.generateRequest('/Events/' + str(id))
-        json.loads(text)
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Events/' + str(id), 'GET', '')
+                event = json.loads(text)
+                print 'PASS: getEvent()'
+                self.tests_passed += 1
+                return event
+            except:
+                print 'FAIL: getEvent()'
+        else:
+            text = self.generateRequest('/Events/' + str(id), 'GET', '')
+            event = json.loads(text)
+            return event
     
     def addFileCategory(self, category, test=False):
         """
@@ -1522,25 +1578,45 @@ class Insightly():
             except:
                 print 'FAIL: getNotes()'
         
-    def getNote(self, id):
+    def getNote(self, id, test = False):
         """
         Gets a note, identified by its record id. Returns a dictionary or raises an error.
         """
-        text = self.generateRequest('/Notes/' + str(id), 'GET', '')
-        try:
-            return json.loads(text)
-        except:
-            raise Exception(error_invalid_server_json)
-            return
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Notes/' + str(id), 'GET', '')
+                note = json.loads(text)
+                print 'PASS: getNote()'
+                self.tests_passed += 1
+                return note
+            except:
+                print 'FAIL: getNote()'
+        else:
+            text = self.generateRequest('/Notes/' + str(id), 'GET', '')
+            note = json.loads(text)
+            return note
     
-    def getNoteComments(self, id):
+    def getNoteComments(self, id, test = False):
         """
         Gets the comments attached to a note, identified by its record id. Returns a list of dictionaries.
         """
-        text = self.generateRequest('/Notes/' + str(id) + '/Comments', 'GET', '')
-        return self.dictToList(json.loads(text))
-        
-    def addNoteComment(self, id, comment):
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Notes/' + str(id) + '/Comments', 'GET', '')
+                comments = self.dictToList(json.loads(text))
+                print 'PASS: getNoteComments() found ' + str(len(comments)) + ' attached to a test note'
+                self.tests_passed += 1
+                return comments
+            except:
+                print 'FAIL: getNoteComments()'
+        else:
+            text = self.generateRequest('/Notes/' + str(id) + '/Comments', 'GET', '')
+            comments = self.dictToList(json.loads(text))
+            return comments
+    
+    def addNoteComment(self, id, comment, test = False):
         """
         Method not implemented yet
         """
@@ -1557,12 +1633,23 @@ class Insightly():
             else:
                 raise Exception('The parameter comment should be a dictionary with the required fields, or the string \'sample\' to request a sample object.')
         elif type(comment) is dict:
-            text = self.generateRequest('/' + str(id) +'/Comments', 'POST', json.dumps(comment))
-            return json.loads(text)
+            if test:
+                self.tests_run += 1
+                try:
+                    text = self.generateRequest('/' + str(id) +'/Comments', 'POST', json.dumps(comment))
+                    comment = json.loads(text)
+                    self.tests_passed += 1
+                    print 'PASS: addNoteComment()'
+                    return comment
+                except:
+                    print 'FAIL: addNoteComment()'
+            else:
+                text = self.generateRequest('/' + str(id) +'/Comments', 'POST', json.dumps(comment))
+                comment = json.loads(text)
         else:
             raise Exception('The parameter comment should be a dictionary with the required fields, or the string \'sample\' to request a sample object.')
     
-    def addOpportunity(self, opportunity):
+    def addOpportunity(self, opportunity, test = True):
         """
         Add/update an opportunity in Insightly. This method expects a dictionary containing valid fields for an opportunity, or the string 'sample' to request a sample object. 
         """
@@ -1573,11 +1660,28 @@ class Insightly():
             else:
                 raise Exception('The parameter opportunity must be a dictionary with valid fields for an opportunity, or the string \'sample\' to request a sample object.')
         elif type(opportunity) is dict:
-            if opportunity.get('OPPORTUNITY_ID',0) > 0:
-                text = self.generateRequest('/Opportunities', 'PUT', json.dumps(opportunity))
+            if opportunity.get('OPPORTUNITY_STATE', None) is None:
+                raise Exception('OPPORTUNITY_STATE (required field) is missing')
+            if test:
+                self.tests_run += 1
+                try:
+                    if opportunity.get('OPPORTUNITY_ID',0) > 0:
+                        text = self.generateRequest('/Opportunities', 'PUT', json.dumps(opportunity))
+                    else:
+                        text = self.generateRequest('/Opportunities', 'POST', json.dumps(opportunity))
+                    opportunity = json.loads(text)
+                    print 'PASS: addOpportunity()'
+                    self.tests_passed += 1
+                    return opportunity
+                except:
+                    print 'FAIL: addOpportunity()'
             else:
-                text = self.generateRequest('/Opportunities', 'POST', json.dumps(opportunity))
-            return json.loads(text)
+                if opportunity.get('OPPORTUNITY_ID',0) > 0:
+                    text = self.generateRequest('/Opportunities', 'PUT', json.dumps(opportunity))
+                else:
+                    text = self.generateRequest('/Opportunities', 'POST', json.dumps(opportunity))
+                opportunity = json.loads(text)
+                return opportunity
         else:
             raise Exception('The parameter opportunity must be a dictionary with valid fields for an opportunity, or the string \'sample\' to request a sample object.')
     
@@ -1590,6 +1694,7 @@ class Insightly():
             try:
                 text = self.generateRequest('/Opportunities/' + str(id), 'DELETE', '')
                 self.tests_passed += 1
+                print 'PASS: deleteOpportunity()'
                 return True
             except:
                 print 'FAIL: deleteOpportunity()'
@@ -1687,7 +1792,7 @@ class Insightly():
         if test:
             self.tests_run += 1
             try:
-                text = self.generateRequest('Opportunities/' + str(id) + '/Notes', 'GET', '')
+                text = self.generateRequest('/Opportunities/' + str(id) + '/Notes', 'GET', '')
                 notes = self.dictToList(json.loads(text))
                 print 'PASS: getOpportunityNotes()'
                 self.tests_passed += 1
@@ -1695,7 +1800,7 @@ class Insightly():
             except:
                 print 'FAIL: getOpportunityNotes()'
         else:
-            text = self.generateRequest('Opportunities/' + str(id) + '/Notes', 'GET', '')
+            text = self.generateRequest('/Opportunities/' + str(id) + '/Notes', 'GET', '')
             notes = self.dictToList(json.loads(text))
             return notes
     
@@ -1706,7 +1811,7 @@ class Insightly():
         if test:
             self.tests_run += 1
             try:
-                text = self.generateRequest('Opportunities/' + str(id) + '/Tasks', 'GET', '')
+                text = self.generateRequest('/Opportunities/' + str(id) + '/Tasks', 'GET', '')
                 tasks = self.dictToList(json.loads(text))
                 self.tests_passed += 1
                 print 'PASS: getOpportunityTasks()'
@@ -1714,7 +1819,7 @@ class Insightly():
             except:
                 print 'FAIL: getOpportunityTasks()'
         else:
-            text = self.generateRequest('Opportunities/' + str(id) + '/Tasks', 'GET', '')
+            text = self.generateRequest('/Opportunities/' + str(id) + '/Tasks', 'GET', '')
             tasks = self.dictToList(json.loads(text))
             return tasks
         
@@ -1733,9 +1838,9 @@ class Insightly():
                 self.tests_run += 1
                 try:
                     if category.get('CATEGORY_ID', 0) > 0:
-                        text = self.generateRequest('OpportunityCategories', 'PUT', json.dumps(category))
+                        text = self.generateRequest('/OpportunityCategories', 'PUT', json.dumps(category))
                     else:
-                        text = self.generateRequest('OpportunityCategories', 'POST', json.dumps(category))
+                        text = self.generateRequest('/OpportunityCategories', 'POST', json.dumps(category))
                     category = json.loads(text)
                     print 'PASS: addOpportunityCategory()'
                     self.tests_passed += 1
@@ -1744,9 +1849,9 @@ class Insightly():
                     print 'FAIL: addOpportunityCategory()'
             else:
                 if category.get('CATEGORY_ID', 0) > 0:
-                    text = self.generateRequest('OpportunityCategories', 'PUT', json.dumps(category))
+                    text = self.generateRequest('/OpportunityCategories', 'PUT', json.dumps(category))
                 else:
-                    text = self.generateRequest('OpportunityCategories', 'POST', json.dumps(category))
+                    text = self.generateRequest('/OpportunityCategories', 'POST', json.dumps(category))
                 category = json.loads(text)
                 return category
     
@@ -1812,7 +1917,7 @@ class Insightly():
         if test:
             self.tests_run += 1
             try:
-                text = self.generateRequest('OpportunityStateReasons', 'GET', '')
+                text = self.generateRequest('/OpportunityStateReasons', 'GET', '')
                 reasons = self.dictToList(json.loads(text))
                 print 'PASS: getOpportunityStateReasons()'
                 self.tests_passed += 1
@@ -1820,7 +1925,7 @@ class Insightly():
             except:
                 print 'FAIL: getOpportunityStateReasons()'
         else:
-            text = self.generateRequest('OpportunityStateReasons', 'GET', '')
+            text = self.generateRequest('/OpportunityStateReasons', 'GET', '')
             reasons = self.dictToList(json.loads(text))
             return reasons
     
@@ -1941,7 +2046,7 @@ class Insightly():
         if test:
             self.tests_run += 1
             try:
-                text = self.generateRequest('/Pipelines/' + str(id))
+                text = self.generateRequest('/Pipelines/' + str(id), 'GET', '')
                 pipeline = json.loads(text)
                 self.tests_passed += 1
                 print 'PASS: getPipeline()'
@@ -1949,7 +2054,7 @@ class Insightly():
             except:
                 print 'FAIL: getPipeline()'
         else:
-            text = self.generateRequest('/Pipelines/' + str(id))
+            text = self.generateRequest('/Pipelines/' + str(id), 'GET', '')
             return json.loads(text)
     #
     # Following are methods for obtaining pipeline stages
