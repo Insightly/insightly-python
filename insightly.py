@@ -921,12 +921,22 @@ class Insightly():
         
     def deleteContactTags(self, contact_id, tag, test = False):
         """
-        Delete tags from a contact
+        Delete a tag from a contact
         """
         if self.version != '2.2':
             raise Exception('method only supported for version 2.2 API')
-        pass
-        # TODO: talk to Patrick about expected behavior for this endpoint
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Contacts/' + str(contact_id) + '/Tags/' + tag, 'DELETE', '')
+                print 'PASS: deleteContactTag()'
+                self.tests_passed += 1
+                return True
+            except:
+                print 'FAIL: deleteContactTag()'
+        else:
+            text = self.generateRequest('/Contacts/' + str(contact_id) + '/Tags/' + tag, 'DELETE', '')
+            return True
     
     def getContacts(self, ids=None, email=None, tag=None, filters=None, top=None, skip=None, orderby=None, test = False):
         """
@@ -1134,7 +1144,7 @@ class Insightly():
     
     def getContactTags(self, contact_id, test = False):
         """
-        Gets a list of tags linked to a contact
+        Gets a list of tags linked to a contact, returns a JSON list. 
         """
         if self.version != '2.2':
             raise Exception('method only supported for version 2.2 API')
