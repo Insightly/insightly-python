@@ -899,7 +899,26 @@ class Insightly():
         else:
             text = self.generateRequest('/Contacts/' + str(contact_id) + '/Follow', 'DELETE','')
             return True
-    
+        
+    def deleteContactNote(self, contact_id, note_id, test=False):
+        """
+        Delete a note from a contact
+        """
+        if self.version != '2.2':
+            raise Exception('method only supported for version 2.2 API')
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Contacts/' + str(contact_id) + '/Notes/' + str(note_id), 'DELETE', '')
+                print 'PASS: deleteContactNote()'
+                self.tests_passed += 1
+                return True
+            except:
+                print 'FAIL: deleteContactNote()'
+        else:
+            text = self.generateRequest('/Contacts/' + str(contact_id) + '/Notes/' + str(note_id), 'DELETE', '')
+            return True
+        
     def deleteContactTags(self, contact_id, tag, test = False):
         """
         Delete tags from a contact
