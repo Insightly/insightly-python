@@ -729,6 +729,39 @@ class Insightly():
             text = self.generateRequest('/Contacts/' + str(contact_id) + '/Follow', 'POST', '')
             return True
     
+    def addContactNote(self, contact_id, note, test = False):
+        """
+        Add/update a file attachment for a contact
+        """
+        if self.version != '2.2':
+            raise Exception('method only supported for version 2.2 API')
+        if type(note) is dict:
+            if test:
+                self.tests_run += 1
+                try:
+                    note_id = note.get('NOTE_ID', None)
+                    if note_id is not None:
+                        text = self.generateRequest('/Contacts/' + str(contact_id) + '/Notes', 'PUT', json.dumps(note))
+                    else:
+                        text = self.generateRequest('/Contacts/' + str(contact_id) + '/Notes', 'POST', json.dumps(note))
+                    note = json.loads(text)
+                    print 'PASS: addContactNote()'
+                    self.tests_passed += 1
+                    return note
+                except:
+                    print 'FAIL: addContactNote()'
+            else:
+                note_id = note.get('NOTE_ID', None)
+                if note_id is not None:
+                    text = self.generateRequest('/Contacts/' + str(contact_id) + '/Notes', 'PUT', json.dumps(note))
+                else:
+                    text = self.generateRequest('/Contacts/' + str(contact_id) + '/Notes', 'POST', json.dumps(note))
+                note = json.loads(text)
+                return note
+        else:
+            raise Exception('file_attachment must be a dictionary')
+    
+    
     def addContactTags(self, contact_id, tags, test = False):
         """
         Delete a tag(s) from a contact
