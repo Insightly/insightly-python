@@ -919,7 +919,7 @@ class Insightly():
             text = self.generateRequest('/Contacts/' + str(contact_id) + '/Notes/' + str(note_id), 'DELETE', '')
             return True
         
-    def deleteContactTags(self, contact_id, tag, test = False):
+    def deleteContactTag(self, contact_id, tag, test = False):
         """
         Delete a tag from a contact
         """
