@@ -137,22 +137,38 @@ class Insightly():
 
 	Raises an exception if login or call to getUsers() fails, most likely due to an invalid or missing API key
 	"""
+        if len(apikey) < 1:
+            try:
+                f = open('apikey.txt', 'r')
+                apikey = f.read()
+                print 'API Key read from disk as ' + apikey
+            except:
+                pass
+        version = str(version)
         if version == '2.2' or version == '2.1':
             self.alt_header = 'Basic '
             self.apikey = apikey
-            self.baseurl = 'https://api.insight.ly/v' + version
-            self.users = self.getUsers()
-            self.version = version
             self.tests_run = 0
             self.tests_passed = 0
-            print 'CONNECTED: found ' + str(len(self.users)) + ' users'
-            for u in self.users:
-                if u.get('ACCOUNT_OWNER', False):
-                    self.owner_email = u.get('EMAIL_ADDRESS','')
-                    self.owner_id = u.get('USER_ID', None)
-                    self.owner_name = u.get('FIRST_NAME','') + ' ' + u.get('LAST_NAME','')
-                    print 'The account owner is ' + self.owner_name + ' [' + str(self.owner_id) + '] at ' + self.owner_email
-                    break
+            if version == '2.1':
+                self.baseurl = 'https://api.insightlydev.com/v' + version
+                self.users = self.getUsers()
+                self.version = version
+                print 'CONNECTED: found ' + str(len(self.users)) + ' users'
+                for u in self.users:
+                    if u.get('ACCOUNT_OWNER', False):
+                        self.owner_email = u.get('EMAIL_ADDRESS','')
+                        self.owner_id = u.get('USER_ID', None)
+                        self.owner_name = u.get('FIRST_NAME','') + ' ' + u.get('LAST_NAME','')
+                        print 'The account owner is ' + self.owner_name + ' [' + str(self.owner_id) + '] at ' + self.owner_email
+                        break
+            else:
+                self.baseurl = 'https://api.insightlydev.com/v' + version
+                self.version = version
+                print 'ASSUME connection proceeded, not all endpoints are implemented yet'
+                self.owner_email = ''
+                self.owner_id = 0
+                self.owner_name = ''
         else:
             raise Exception('Python library only supports v2.1 or v2.2 APIs')
                 
@@ -185,156 +201,200 @@ class Insightly():
         #
         # call methods in self test mode
         #
-        
-        users = self.getUsers(test = True)                              # get users
-        user_id = users[0]['USER_ID']                                   # get the user ID for the first user on the instance
-        accounts = self.getAccount(test = True)                         # get account/instance information
-        # comments = self.getComments(test = True)                      # get comments
-        contact = self.getContacts(orderby = 'DATE_UPDATED_UTC desc', top = top, test = True)   # get test contact
-        if contact is not None:
-            contact_id = contact['CONTACT_ID']                      
-            emails = self.getContactEmails(contact_id, test = True)     # get emails attached to contact
-            notes = self.getContactNotes(contact_id, test = True)       # get notes attached to contact
-            tasks = self.getContactTasks(contact_id, test = True)       # get tasks attached to contact
-        if self.version == '2.2':
-            addresses = self.getContactAddresses(contact_id, test=True) # get contact addresses
-            contactinfos = self.getContactContactInfos(contact_id, test=True)
-            events = self.getContactEvents(contact_id, test=True)       # get events linked to contact
-        contact = dict(
-            SALUTATION = 'Mr',
-            FIRST_NAME = 'Testy',
-            LAST_NAME = 'McTesterson',
-        )
-        contact = self.addContact(contact, test=True)                   # test adding, updating and deleting a contact       
-        countries = self.getCountries(test = True)                      # get countries
-        currencies = self.getCurrencies(test = True)                    # get currencies
-        custom_fields = self.getCustomFields(test = True)                # get custom fields
-        if len(custom_fields) > 0:
-            custom_field = custom_fields[0]
-            custom_field = self.getCustomField(custom_field['CUSTOM_FIELD_ID'], test = True)
-        emails = self.getEmails(top=top, test = True)                   # get emails
-        if len(emails) > 0:
-            email = emails[0]
-            comment = self.addCommentToEmail(email['EMAIL_ID'], 'This is a test', user_id, test = True)
-            self.deleteComment(comment['COMMENT_ID'], test = True)
-        events = self.getEvents(top=top, test = True)                   # get events
-        if len(events) > 0:
-            event = events[0]
-            event = self.getEvent(event['EVENT_ID'], test = True)
-        event = dict(
-            TITLE = 'Test Event',
-            LOCATION = 'Somewhere',
-            DETAILS = 'Details',
-            START_DATE_UTC = '2014-07-12 12:00:00',
-            END_DATE_UTC = '2014-07-12 13:00:00',
-            OWNER_USER_ID = user_id,
-            ALL_DAY = False,
-            PUBLICLY_VISIBLE = True,
-        )
-        event = self.addEvent(event, test = True)                       # add event
-        if event is not None:
-            self.deleteEvent(event['EVENT_ID'], test = True)            # delete event
-        categories = self.getFileCategories(test = True)                # get file categories
-        category = dict(
-            CATEGORY_NAME = 'Test Category',
-            ACTIVE = True,
-            BACKGROUND_COLOR = '000000',
-        )
-        category = self.addFileCategory(category, test = True)          # add file category
-        if category is not None:
-            self.deleteFileCategory(category['CATEGORY_ID'])            # delete file category
-            
-        #
-        # TODO: add Leads related endpoints
-        #
-            
-        notes = self.getNotes(test = True)                              # get notes
-        if notes is not None:
-            note = notes[0]
-            note = self.getNote(note['NOTE_ID'], test = True)
-            comments = self.getNoteComments(note['NOTE_ID'], test = True)
-
-        categories = self.getOpportunityCategories(test = True)         # get opportunity categories
-        category = dict(
-            CATEGORY_NAME = 'Test Category',
-            ACTIVE = True,
-            BACKGROUND_COLOR = '000000',
-        )
-        category = self.addOpportunityCategory(category, test = True)   # add opportunity category
-        self.deleteOpportunityCategory(category['CATEGORY_ID'], test = True)
-        
-        opportunities = self.getOpportunities(orderby='DATE_UPDATED_UTC desc', top=top, test = True)        # get opportunities
-        if opportunities is not None:
-            opportunity = opportunities[0]
-            emails = self.getOpportunityEmails(opportunity['OPPORTUNITY_ID'], test = True)
-            notes = self.getOpportunityNotes(opportunity['OPPORTUNITY_ID'], test = True)
-            tasks = self.getOpportunityTasks(opportunity['OPPORTUNITY_ID'], test = True)
-            history = self.getOpportunityStateHistory(opportunity['OPPORTUNITY_ID'], test = True)
-            #
-            # TODO: add v2.2 endpoints, test CRUD operations on child objects
-            #
-        
-        opportunity = dict(
-            OPPORTUNITY_NAME = 'This is a test',
-            OPPORTUNITY_DETAILS = 'This is a test test test',
-            OPPORTUNITY_STATE = 'OPEN',
-        )
-        
-        opportunity = self.addOpportunity(opportunity, test = True)
-        self.deleteOpportunity(opportunity['OPPORTUNITY_ID'], test = True)
-        
-        reasons = self.getOpportunityStateReasons(test = True)
-        
-        organizations = self.getOrganizations(top=top, orderby='DATE_UPDATED_UTC desc', test = True)
-        if organizations is not None:
-            organization = organizations[0]
-            if organization is not None:
-                emails = self.getOrganizationEmails(organization['ORGANISATION_ID'], test = True)
-                notes = self.getOrganizationNotes(organization['ORGANISATION_ID'], test = True)
-                tasks = self.getOrganizationTasks(organization['ORGANISATION_ID'], test = True)
+        if self.version == '2.1':
+            users = self.getUsers(test = True)                              # get users
+            user_id = users[0]['USER_ID']                                   # get the user ID for the first user on the instance
+            accounts = self.getAccount(test = True)                         # get account/instance information
+            # comments = self.getComments(test = True)                      # get comments
+            contact = self.getContacts(orderby = 'DATE_UPDATED_UTC desc', top = top, test = True)   # get test contact
+            if contact is not None:
+                contact_id = contact['CONTACT_ID']                      
+                emails = self.getContactEmails(contact_id, test = True)     # get emails attached to contact
+                notes = self.getContactNotes(contact_id, test = True)       # get notes attached to contact
+                tasks = self.getContactTasks(contact_id, test = True)       # get tasks attached to contact
+            contact = dict(
+                SALUTATION = 'Mr',
+                FIRST_NAME = 'Testy',
+                LAST_NAME = 'McTesterson',
+            )
+            contact = self.addContact(contact, test=True)                   # test adding, updating and deleting a contact       
+            countries = self.getCountries(test = True)                      # get countries
+            currencies = self.getCurrencies(test = True)                    # get currencies
+            custom_fields = self.getCustomFields(test = True)                # get custom fields
+            if len(custom_fields) > 0:
+                custom_field = custom_fields[0]
+                custom_field = self.getCustomField(custom_field['CUSTOM_FIELD_ID'], test = True)
+            emails = self.getEmails(top=top, test = True)                   # get emails
+            if len(emails) > 0:
+                email = emails[0]
+                comment = self.addCommentToEmail(email['EMAIL_ID'], 'This is a test', user_id, test = True)
+                self.deleteComment(comment['COMMENT_ID'], test = True)
+            events = self.getEvents(top=top, test = True)                   # get events
+            if len(events) > 0:
+                event = events[0]
+                event = self.getEvent(event['EVENT_ID'], test = True)
+            event = dict(
+                TITLE = 'Test Event',
+                LOCATION = 'Somewhere',
+                DETAILS = 'Details',
+                START_DATE_UTC = '2014-07-12 12:00:00',
+                END_DATE_UTC = '2014-07-12 13:00:00',
+                OWNER_USER_ID = user_id,
+                ALL_DAY = False,
+                PUBLICLY_VISIBLE = True,
+            )
+            event = self.addEvent(event, test = True)                       # add event
+            if event is not None:
+                self.deleteEvent(event['EVENT_ID'], test = True)            # delete event
+            categories = self.getFileCategories(test = True)                # get file categories
+            category = dict(
+                CATEGORY_NAME = 'Test Category',
+                ACTIVE = True,
+                BACKGROUND_COLOR = '000000',
+            )
+            category = self.addFileCategory(category, test = True)          # add file category
+            if category is not None:
+                self.deleteFileCategory(category['CATEGORY_ID'])            # delete file category
                 
-        organization = dict(
-            ORGANISATION_NAME = 'Foo Corp',
-            BACKGROUND = 'Details',
-        )
-        organization = self.addOrganization(organization, test = True)
-        self.deleteOrganization(organization['ORGANIZATION_ID'], test = True)
-            
-        pipelines = self.getPipelines(test = True)
-        pipeline = self.getPipeline(pipelines[0]['PIPELINE_ID'], test = True)
-        stages = self.getPipelineStages(test = True)
-        stage = self.getPipelineStage(stages[0]['STAGE_ID'], test = True)
-        
-        projects = self.getProjects(top=top, orderby='DATE_UPDATED_UTC desc', test = True)
-        if projects is not None:
-            project = projects[0]
-            project_id = project['PROJECT_ID']
-            emails = self.getProjectEmails(project_id, test = True)
-            notes = self.getProjectNotes(project_id, test = True)
-            tasks = self.getProjectTasks(project_id, test = True)
             #
-            # TODO: add v2.2 endpoints, test CRUD operations on child objects
+            # TODO: add Leads related endpoints
             #
+                
+            notes = self.getNotes(test = True)                              # get notes
+            if notes is not None:
+                note = notes[0]
+                note = self.getNote(note['NOTE_ID'], test = True)
+                comments = self.getNoteComments(note['NOTE_ID'], test = True)
+    
+            categories = self.getOpportunityCategories(test = True)         # get opportunity categories
+            category = dict(
+                CATEGORY_NAME = 'Test Category',
+                ACTIVE = True,
+                BACKGROUND_COLOR = '000000',
+            )
+            category = self.addOpportunityCategory(category, test = True)   # add opportunity category
+            self.deleteOpportunityCategory(category['CATEGORY_ID'], test = True)
             
-        categories = self.getProjectCategories(test = True)                     # get project categories
-        category = dict(
-            CATEGORY_NAME = 'Test Category',
-            ACTIVE = True,
-            BACKGROUND_COLOR = '000000',
-        )
-        category = self.addProjectCategory(category, test = True)               # add project category
-        self.deleteProjectCategory(category['CATEGORY_ID'], test = True)        # delete project category
-        
-        relationships = self.getRelationships(test = True)                      # get relationships
-        
-        tasks = self.getTasks(top=top, orderby='DUE_DATE desc', test = True)    # get tasks
-        
-        teams = self.getTeams(test = True)                                      # get teams
-        if teams is not None:
-            team = teams[0]
-            team_members = self.getTeamMembers(team['TEAM_ID'], test = True)    # get team members
+            opportunities = self.getOpportunities(orderby='DATE_UPDATED_UTC desc', top=top, test = True)        # get opportunities
+            if opportunities is not None:
+                opportunity = opportunities[0]
+                emails = self.getOpportunityEmails(opportunity['OPPORTUNITY_ID'], test = True)
+                notes = self.getOpportunityNotes(opportunity['OPPORTUNITY_ID'], test = True)
+                tasks = self.getOpportunityTasks(opportunity['OPPORTUNITY_ID'], test = True)
+                history = self.getOpportunityStateHistory(opportunity['OPPORTUNITY_ID'], test = True)
+                #
+                # TODO: add v2.2 endpoints, test CRUD operations on child objects
+                #
             
-        print str(self.tests_passed) + ' out of ' + str(self.tests_run) + ' tests passed'
+            opportunity = dict(
+                OPPORTUNITY_NAME = 'This is a test',
+                OPPORTUNITY_DETAILS = 'This is a test test test',
+                OPPORTUNITY_STATE = 'OPEN',
+            )
+            
+            opportunity = self.addOpportunity(opportunity, test = True)
+            self.deleteOpportunity(opportunity['OPPORTUNITY_ID'], test = True)
+            
+            reasons = self.getOpportunityStateReasons(test = True)
+            
+            organizations = self.getOrganizations(top=top, orderby='DATE_UPDATED_UTC desc', test = True)
+            if organizations is not None:
+                organization = organizations[0]
+                if organization is not None:
+                    emails = self.getOrganizationEmails(organization['ORGANISATION_ID'], test = True)
+                    notes = self.getOrganizationNotes(organization['ORGANISATION_ID'], test = True)
+                    tasks = self.getOrganizationTasks(organization['ORGANISATION_ID'], test = True)
+                    
+            organization = dict(
+                ORGANISATION_NAME = 'Foo Corp',
+                BACKGROUND = 'Details',
+            )
+            organization = self.addOrganization(organization, test = True)
+            self.deleteOrganization(organization['ORGANIZATION_ID'], test = True)
+                
+            pipelines = self.getPipelines(test = True)
+            pipeline = self.getPipeline(pipelines[0]['PIPELINE_ID'], test = True)
+            stages = self.getPipelineStages(test = True)
+            stage = self.getPipelineStage(stages[0]['STAGE_ID'], test = True)
+            
+            projects = self.getProjects(top=top, orderby='DATE_UPDATED_UTC desc', test = True)
+            if projects is not None:
+                project = projects[0]
+                project_id = project['PROJECT_ID']
+                emails = self.getProjectEmails(project_id, test = True)
+                notes = self.getProjectNotes(project_id, test = True)
+                tasks = self.getProjectTasks(project_id, test = True)
+                #
+                # TODO: add v2.2 endpoints, test CRUD operations on child objects
+                #
+                
+            categories = self.getProjectCategories(test = True)                     # get project categories
+            category = dict(
+                CATEGORY_NAME = 'Test Category',
+                ACTIVE = True,
+                BACKGROUND_COLOR = '000000',
+            )
+            category = self.addProjectCategory(category, test = True)               # add project category
+            self.deleteProjectCategory(category['CATEGORY_ID'], test = True)        # delete project category
+            
+            relationships = self.getRelationships(test = True)                      # get relationships
+            
+            tasks = self.getTasks(top=top, orderby='DUE_DATE desc', test = True)    # get tasks
+            
+            teams = self.getTeams(test = True)                                      # get teams
+            if teams is not None:
+                team = teams[0]
+                team_members = self.getTeamMembers(team['TEAM_ID'], test = True)    # get team members
+                
+            print str(self.tests_passed) + ' out of ' + str(self.tests_run) + ' tests passed'
+            
+        elif self.version == '2.2':
+            #
+            # Building out the v2.2 test suite. Only a few endpoints are live at the moment
+            #
+            # TODO: auto-fetch a contact via getContacts(), not implemented in v2.2 yet
+            #
+            contact_id = 104101695
+            addresses = self.getContactAddresses(contact_id, test=True) # get contact addresses
+            address = dict(
+                ADDRESS_TYPE = 'Work',
+                STREET = '101 Main St',
+                CITY = 'Monaco',
+                COUNTRY = 'Monaco',
+            )
+            address = self.addContactAddress(contact_id, address, test = True)
+            if address is not None:
+                self.deleteContactAddress(contact_id, address['ADDRESS_ID'], test = True)
+            contactinfos = self.getContactContactInfos(contact_id, test=True)
+            contactinfo = dict(
+                TYPE = 'Phone',
+                LABEL = 'Work',
+                DETAIL = '+14155551234',
+            )
+            contactinfo = self.addContactContactInfo(contact_id, contactinfo, test = True)
+            if contactinfo is not None:
+                self.deleteContactContactInfo(contact_id, contactinfo['CONTACT_INFO_ID'], test = True)
+            # events = self.getContactEvents(contact_id, test=True)       # get events linked to contact
+            tags = self.getContactTags(contact_id, test=True)           # grt tags linked to contact
+            tag = self.addContactTag(contact_id, 'foo', test=True)
+            self.deleteContactTag(contact_id, 'foo', test=True)
+            notes = self.getNotes(test = True)
+            if len(notes) > 0:
+                note = notes[0]
+                note = self.addNote(note, test = True)
+                note = dict(
+                    TITLE = 'Test',
+                    BODY = 'This is a test',
+                    LINK_SUBJECT_ID = contact_id,
+                    LINK_SUBJECT_TYPE = 'CONTACT',
+                )
+                note = self.addNote(note, test = True)
+                if note is not None:
+                    note_id = note.get('NOTE_ID',None)
+                    if note_id is not None:
+                        self.deleteNote(note_id, test=True)
+        else:
+            print 'Automated test suites only available for versions 2.1 and 2.2'
         
     def dictToList(self, data):
         """
@@ -384,6 +444,8 @@ class Insightly():
             raise Exception('parameter method must be GET|DELETE|PUT|UPDATE')
         # generate full URL from base url and relative url
         full_url = self.baseurl + url
+        if self.version == '2.2':
+            print 'URL: ' + full_url
         request = urllib2.Request(full_url)
         if alt_auth is not None:
             request.add_header("Authorization", self.alt_header)
@@ -391,9 +453,9 @@ class Insightly():
             base64string = base64.encodestring('%s:%s' % (self.apikey, '')).replace('\n', '')
             request.add_header("Authorization", "Basic %s" % base64string)   
         request.get_method = lambda: method
+        request.add_header('Content-Type', 'application/json')
         # open the URL, if an error code is returned it should raise an exception
         if method == 'PUT' or method == 'POST':
-            request.add_header('Content-Type', 'application/json')
             result = urllib2.urlopen(request, data)
         else:
             result = urllib2.urlopen(request)
@@ -582,7 +644,7 @@ class Insightly():
             raise Exception('method only supported for version 2.2 API')
         if type(address) is dict:
             # validate data
-            at = string.lower(address.get('TYPE',''))
+            at = string.lower(address.get('ADDRESS_TYPE',''))
             if at == 'work' or at == 'home' or at == 'postal' or at == 'other':
                 if test:
                     self.tests_run += 1
@@ -762,30 +824,24 @@ class Insightly():
             raise Exception('file_attachment must be a dictionary')
     
     
-    def addContactTags(self, contact_id, tags, test = False):
+    def addContactTag(self, contact_id, tag, test = False):
         """
         Delete a tag(s) from a contact
         """
         if self.version != '2.2':
             raise Exception('method only supported for version 2.2 API')
-        if type(tags) is list:
-            pass
-        elif type(tags) is str:
-            tags = string.split(tags,',')
-        else:
-            raise Exception('tags must either be a string or a list of strings')
+        t = dict(TAG_NAME=tag)
         if test:
             self.tests_run += 1
-            try:
-                text = self.generateRequest('/Contacts/' + str(contact_id) + '/Tags', 'POST', json.dumps(tags))
-                tags = json.loads(text)
-                print 'PASS: addContactTags()'
-                self.tests_passed += 1
-                return tags
-            except:
-                print 'FAIL: addContactTags()'
+            text = self.generateRequest('/Contacts/' + str(contact_id) + '/Tags', 'POST', json.dumps(t))
+            tags = json.loads(text)
+            print 'PASS: addContactTags()'
+            self.tests_passed += 1
+            return tags
+            #except:
+            #    print 'FAIL: addContactTags()'
         else:
-            text = self.generateRequest('/Contacts/' + str(contact_id) + '/Tags', 'POST', json.dumps(tags))
+            text = self.generateRequest('/Contacts/' + str(contact_id) + '/Tags', 'POST', json.dumps(t))
             return json.loads(text)
         
     def deleteContact(self, contact_id, test = False):
@@ -814,14 +870,14 @@ class Insightly():
         if test:
             self.tests_run += 1
             try:
-                text = self.generateRequest('/Contacts/' + str(xcontact_id) + '/Addresses/' + str(address_id), 'DELETE', '')
+                text = self.generateRequest('/Contacts/' + str(contact_id) + '/Addresses/' + str(address_id), 'DELETE', '')
                 print 'PASS: deleteContactAddress()'
                 self.tests_passed += 1
                 return True
             except:
                 print 'FAIL: deleteContactAddress()'
         else:
-            text = self.generateRequest('/Contacts/' + str(xcontact_id) + '/Addresses/' + str(address_id), 'DELETE', '')
+            text = self.generateRequest('/Contacts/' + str(contact_id) + '/Addresses/' + str(address_id), 'DELETE', '')
             return True
     
     def deleteContactContactInfo(self, contact_id, contact_info_id, test = False):
@@ -1624,7 +1680,7 @@ class Insightly():
         orderby = order by statement (e.g. 'DATE_CREATED_UTC desc')
         filters = list of filter statements
         """
-        if test:
+        if not test:
             querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=filters)
             text = self.generateRequest('/Notes' + querystring, 'GET', '')
             return self.dictToList(json.loads(text))
