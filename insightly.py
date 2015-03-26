@@ -41,6 +41,8 @@ class Insightly():
     from insightly import Insightly
     i = Insightly(apikey='your API key', version='2.2')
     users = i.test()
+    
+    NOTE: you can also store your API key in a text file named apikey.txt that is placed in the working directory along with insightly.py
    
     This will run an automatic test suite against your Insightly account. If the methods you need all pass, you're good to go!
    
