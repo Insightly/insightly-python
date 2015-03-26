@@ -378,21 +378,22 @@ class Insightly():
             tags = self.getContactTags(contact_id, test=True)           # grt tags linked to contact
             tag = self.addContactTag(contact_id, 'foo', test=True)
             self.deleteContactTag(contact_id, 'foo', test=True)
+            note = dict(
+                TITLE = 'This is a test',
+                BODY = 'Testing 1234',
+            )
+            note = self.addContactNote(contact_id, note, test = True)
+            if note is not None:
+                note_id = note.get('NOTE_ID', None)
+                if note_id is not None:
+                    self.deleteContactNote(contact_id, note_id, test = True)
+                    
             notes = self.getNotes(test = True)
             if len(notes) > 0:
                 note = notes[0]
+                # update the existing note
                 note = self.addNote(note, test = True)
-                note = dict(
-                    TITLE = 'Test',
-                    BODY = 'This is a test',
-                    LINK_SUBJECT_ID = contact_id,
-                    LINK_SUBJECT_TYPE = 'CONTACT',
-                )
-                note = self.addNote(note, test = True)
-                if note is not None:
-                    note_id = note.get('NOTE_ID',None)
-                    if note_id is not None:
-                        self.deleteNote(note_id, test=True)
+                self.deleteNote(note['NOTE_ID'], test=True)
         else:
             print 'Automated test suites only available for versions 2.1 and 2.2'
         
