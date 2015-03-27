@@ -132,7 +132,7 @@ class Insightly():
     Read operations via the API are generally quite straightforward, so if you get struck on a write operation, this is a good workaround,
     as you are probably just missing a required field or using an invalid element ID when referring to something such as a link to a contact.
     """
-    def __init__(self, apikey='', version='2.1'):
+    def __init__(self, apikey='', version='2.2'):
 	"""
 	Instantiates the class, logs in, and fetches the current list of users. Also identifies the account owner's user ID, which
 	is a required field for some actions. This is stored in the property Insightly.owner_id
@@ -383,6 +383,7 @@ class Insightly():
             note = dict(
                 TITLE = 'This is a test',
                 BODY = 'Testing 1234',
+                VISIBLE_TO = 'Everyone',
             )
             note = self.addContactNote(contact_id, note, test = True)
             if note is not None:
