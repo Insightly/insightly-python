@@ -376,7 +376,20 @@ class Insightly():
             contactinfo = self.addContactContactInfo(contact_id, contactinfo, test = True)
             if contactinfo is not None:
                 self.deleteContactContactInfo(contact_id, contactinfo['CONTACT_INFO_ID'], test = True)
-            # events = self.getContactEvents(contact_id, test=True)       # get events linked to contact
+            events = self.getEvents(test=True)
+            event = dict(
+                TITLE = 'Test Event',
+                LOCATION = 'Somewhere',
+                DETAILS = 'Details',
+                START_DATE_UTC = '2014-07-12 12:00:00',
+                END_DATE_UTC = '2014-07-12 13:00:00',
+                ALL_DAY = False,
+                PUBLICLY_VISIBLE = True,
+            )
+            event = self.addEvent(event, test = True)                       # add event
+            if event is not None:
+                self.deleteEvent(event['EVENT_ID'], test = True)            # delete event
+            events = self.getContactEvents(contact_id, test=True)       # get events linked to contact
             tags = self.getContactTags(contact_id, test=True)           # grt tags linked to contact
             tag = self.addContactTag(contact_id, 'foo', test=True)
             self.deleteContactTag(contact_id, 'foo', test=True)
@@ -1072,8 +1085,21 @@ class Insightly():
             except:
                 print 'FAIL: getContact()'
         else:
-            text = self.generateRequest('/Contacts/' + str(contact_id), 'GET','')
-            return json.loads(text)
+            if contact_id == 'sample':
+                contacts = self.getContacts(top = 100)
+                longest_record = 0
+                longest_record_id = None
+                for c in contacts:
+                    length = len(str(c))
+                    if length > longest_record:
+                        longest_record = length
+                        longest_record_id = c['CONTACT_ID']
+                if longest_record_id is not None:
+                    text = text = self.generateRequest('/Contacts/' + str(longest_record_id), 'GET','')
+                    return json.loads(text)
+            else:
+                text = self.generateRequest('/Contacts/' + str(contact_id), 'GET','')
+                return json.loads(text)
 
     def getContactAddresses(self, contact_id, test = False):
         """
