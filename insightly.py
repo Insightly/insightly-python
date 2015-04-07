@@ -139,6 +139,7 @@ class Insightly():
 
 	Raises an exception if login or call to getUsers() fails, most likely due to an invalid or missing API key
 	"""
+        self.testmode = False
         if len(apikey) < 1:
             try:
                 f = open('apikey.txt', 'r')
@@ -147,6 +148,7 @@ class Insightly():
             except:
                 pass
         version = str(version)
+        self.version = version
         if version == '2.2' or version == '2.1':
             self.alt_header = 'Basic '
             self.apikey = apikey
@@ -196,6 +198,8 @@ class Insightly():
         print "Testing API ....."
         
         print "Testing authentication"
+        
+        self.testmode = True
         
         passed = 0
         failed = 0
@@ -312,7 +316,7 @@ class Insightly():
                 BACKGROUND = 'Details',
             )
             organization = self.addOrganization(organization, test = True)
-            self.deleteOrganization(organization['ORGANIZATION_ID'], test = True)
+            self.deleteOrganization(organization['ORGANISATION_ID'], test = True)
                 
             pipelines = self.getPipelines(test = True)
             pipeline = self.getPipeline(pipelines[0]['PIPELINE_ID'], test = True)
@@ -389,8 +393,8 @@ class Insightly():
             event = self.addEvent(event, test = True)                       # add event
             if event is not None:
                 self.deleteEvent(event['EVENT_ID'], test = True)            # delete event
-            events = self.getContactEvents(contact_id, test=True)       # get events linked to contact
-            tags = self.getContactTags(contact_id, test=True)           # grt tags linked to contact
+            events = self.getContactEvents(contact_id, test=True)           # get events linked to contact
+            tags = self.getContactTags(contact_id, test=True)               # get tags linked to contact
             tag = self.addContactTag(contact_id, 'foo', test=True)
             self.deleteContactTag(contact_id, 'foo', test=True)
             note = dict(
@@ -412,6 +416,7 @@ class Insightly():
                 self.deleteNote(note['NOTE_ID'], test=True)
         else:
             print 'Automated test suites only available for versions 2.1 and 2.2'
+        self.testmode = False
         
     def dictToList(self, data):
         """
@@ -442,7 +447,7 @@ class Insightly():
 	    if u.get('EMAIL_ADDRESS','') == email:
 		return u
 	    
-    def generateRequest(self, url, method, data, alt_auth=None):
+    def generateRequest(self, url, method, data, alt_auth=None, test=False):
         """
         This method is used by other helper functions to generate HTTPS requests and parse
         server responses. This will minimize the amount of work developers need to do to
@@ -450,34 +455,89 @@ class Insightly():
         such as authentication issues and malformed requests. Uses the urllib2 standard
         library, so it is not dependent on third party libraries like Requests
         """
-        if type(url) is not str: raise Exception('url must be a string')
-        if type(method) is not str: raise Exception('method must be a string')
-        valid_method = False
-        response = None
-        text = ''
-        if method == 'GET' or method == 'PUT' or method == 'DELETE' or method == 'POST':
-            valid_method = True
+        if self.testmode:
+            ## first try request with bad API key, check for 401 error
+            #if type(url) is not str: raise Exception('url must be a string')
+            #if type(method) is not str: raise Exception('method must be a string')
+            #valid_method = False
+            #response = None
+            #text = ''
+            #if method == 'GET' or method == 'PUT' or method == 'DELETE' or method == 'POST':
+            #    valid_method = True
+            #else:
+            #    raise Exception('parameter method must be GET|DELETE|PUT|UPDATE')
+            ## generate full URL from base url and relative url
+            #full_url = self.baseurl + url
+            #if self.version == '2.2':
+            #    print 'URL: ' + full_url
+            #request = urllib2.Request(full_url)
+            #base64string = base64.encodestring('%s:%s' % (self.apikey, '')).replace('\n', '')
+            #request.add_header("Authorization", "Basic %s" % 'borkborkborkborkbork')   
+            #request.get_method = lambda: method
+            #request.add_header('Content-Type', 'application/json')
+            ## open the URL, if an error code is returned it should raise an exception
+            #if method == 'PUT' or method == 'POST':
+            #    result = urllib2.urlopen(request, data)
+            #else:
+            #    result = urllib2.urlopen(request)
+            # next test with valid API key
+            if type(url) is not str: raise Exception('url must be a string')
+            if type(method) is not str: raise Exception('method must be a string')
+            valid_method = False
+            response = None
+            text = ''
+            if method == 'GET' or method == 'PUT' or method == 'DELETE' or method == 'POST':
+                valid_method = True
+            else:
+                raise Exception('parameter method must be GET|DELETE|PUT|UPDATE')
+            # generate full URL from base url and relative url
+            full_url = self.baseurl + url
+            if self.version == '2.2':
+                print 'URL: ' + full_url
+            request = urllib2.Request(full_url)
+            if alt_auth is not None:
+                request.add_header("Authorization", self.alt_header)
+            else:
+                base64string = base64.encodestring('%s:%s' % (self.apikey, '')).replace('\n', '')
+                request.add_header("Authorization", "Basic %s" % base64string)   
+            request.get_method = lambda: method
+            request.add_header('Content-Type', 'application/json')
+            # open the URL, if an error code is returned it should raise an exception
+            if method == 'PUT' or method == 'POST':
+                result = urllib2.urlopen(request, data)
+            else:
+                result = urllib2.urlopen(request)
+            text = result.read()
+            return text  
         else:
-            raise Exception('parameter method must be GET|DELETE|PUT|UPDATE')
-        # generate full URL from base url and relative url
-        full_url = self.baseurl + url
-        if self.version == '2.2':
-            print 'URL: ' + full_url
-        request = urllib2.Request(full_url)
-        if alt_auth is not None:
-            request.add_header("Authorization", self.alt_header)
-        else:
-            base64string = base64.encodestring('%s:%s' % (self.apikey, '')).replace('\n', '')
-            request.add_header("Authorization", "Basic %s" % base64string)   
-        request.get_method = lambda: method
-        request.add_header('Content-Type', 'application/json')
-        # open the URL, if an error code is returned it should raise an exception
-        if method == 'PUT' or method == 'POST':
-            result = urllib2.urlopen(request, data)
-        else:
-            result = urllib2.urlopen(request)
-        text = result.read()
-        return text    
+            if type(url) is not str: raise Exception('url must be a string')
+            if type(method) is not str: raise Exception('method must be a string')
+            valid_method = False
+            response = None
+            text = ''
+            if method == 'GET' or method == 'PUT' or method == 'DELETE' or method == 'POST':
+                valid_method = True
+            else:
+                raise Exception('parameter method must be GET|DELETE|PUT|UPDATE')
+            # generate full URL from base url and relative url
+            full_url = self.baseurl + url
+            if self.version == '2.2':
+                print 'URL: ' + full_url
+            request = urllib2.Request(full_url)
+            if alt_auth is not None:
+                request.add_header("Authorization", self.alt_header)
+            else:
+                base64string = base64.encodestring('%s:%s' % (self.apikey, '')).replace('\n', '')
+                request.add_header("Authorization", "Basic %s" % base64string)   
+            request.get_method = lambda: method
+            request.add_header('Content-Type', 'application/json')
+            # open the URL, if an error code is returned it should raise an exception
+            if method == 'PUT' or method == 'POST':
+                result = urllib2.urlopen(request, data)
+            else:
+                result = urllib2.urlopen(request)
+            text = result.read()
+            return text    
         
     def ODataQuery(self, querystring, top=None, skip=None, orderby=None, filters=None):
         """
@@ -2077,7 +2137,7 @@ class Insightly():
             reasons = self.dictToList(json.loads(text))
             return reasons
     
-    def addOrganization(self, organization):
+    def addOrganization(self, organization, test = False):
         """
         Add/update an organization.
         
@@ -2092,7 +2152,7 @@ class Insightly():
             else:
                 raise Exception('The parameter organization must be a dictionary with valid fields for an organization, or the string \'sample\' to request a sample object.')
         elif type(organization) is dict:
-            if organization.get('ORGANIZATION_ID', 0) > 0:
+            if organization.get('ORGANISATION_ID', 0) > 0:
                 text = self.generateRequest('/Organisations', 'PUT', json.dumps(organization))
             else:
                 text = self.generateRequest('/Organisations', 'POST', json.dumps(organization))
@@ -2100,14 +2160,14 @@ class Insightly():
         else:
             raise Exception('The parameter organization must be a dictionary with valid fields for an organization, or the string \'sample\' to request a sample object.')
     
-    def deleteOrganization(self, id):
+    def deleteOrganization(self, id, test = False):
         """
         Delete an organization, identified by its record locator
         """
         text = self.generateRequest('/Organisations/' + str(id), 'DELETE', '')
         return True
     
-    def getOrganizations(self, ids=None, domain=None, tag=None, top=None, skip=None, orderby=None, filters=None):
+    def getOrganizations(self, ids=None, domain=None, tag=None, top=None, skip=None, orderby=None, filters=None, test=False):
         """
         Gets a list of organizations, returns a list of dictionaries
         
@@ -2136,28 +2196,28 @@ class Insightly():
         text = self.generateRequest('/Organisations' + querystring, 'GET', '')
         return self.dictToList(json.loads(text))
         
-    def getOrganization(self, id):
+    def getOrganization(self, id, test=False):
         """
         Gets an organization, identified by its record id, returns a dictionary
         """
         text = self.generateRequest('/Organisations/' + str(id), 'GET', '')
         return json.loads(text)
     
-    def getOrganizationEmails(self, id):
+    def getOrganizationEmails(self, id, test=False):
         """
         Gets a list of emails attached to an organization, identified by its record id, returns a list of dictionaries
         """
         text = self.generateRequest('/Organisations/' + str(id) + '/Emails', 'GET', '')
         return self.dictToList(json.loads(text))
     
-    def getOrganizationNotes(self, id):
+    def getOrganizationNotes(self, id, test=False):
         """
         Gets a list of notes attached to an organization, identified by its record id, returns a list of dictionaries
         """
         text = self.generateRequest('/Organisations/' + str(id) + '/Notes', 'GET', '')
         return self.dictToList(json.loads(text))
     
-    def getOrganizationTasks(self, id):
+    def getOrganizationTasks(self, id, test=False):
         """
         Gets a list of tasks attached to an organization, identified by its record id, returns a list of dictionaries
         """
