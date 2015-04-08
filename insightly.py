@@ -2473,7 +2473,7 @@ class Insightly():
     # Following are methods use to list and manage Insightly projects
     # 
     
-    def addProject(self, project):
+    def addProject(self, project, test = False):
         """
         Add update a project. The parameter project should be a dictionary containing the project details, or
         the string 'sample', to request a sample object. 
@@ -2485,25 +2485,60 @@ class Insightly():
             else:
                 raise Exception('project must be a dictionary containing valid project data fields, or the string \'sample\' to request a sample object')
         else:
-            if project.get('PROJECT_ID', 0) > 0:
-                text = self.generateRequest('/Projects', 'PUT', json.dumps(project))
+            if test:
+                self.tests_run += 1
+                try:
+                    if project.get('PROJECT_ID', 0) > 0:
+                        text = self.generateRequest('/Projects', 'PUT', json.dumps(project))
+                    else:
+                        text = self.generateRequest('/Projects', 'POST', json.dumps(project))
+                    project = json.loads(text)
+                    print 'PASS: addProject()'
+                    self.tests_passed += 1
+                    return project
+                except:
+                    print 'FAIL: addProject()'
             else:
-                text = self.generateRequest('/Projects', 'POST', json.dumps(project))
-            return json.loads(text)
+                if project.get('PROJECT_ID', 0) > 0:
+                    text = self.generateRequest('/Projects', 'PUT', json.dumps(project))
+                else:
+                    text = self.generateRequest('/Projects', 'POST', json.dumps(project))
+                return json.loads(text)
     
-    def deleteProject(self, id):
+    def deleteProject(self, id, test = False):
         """
         Deletes a project, identified by its record id. Returns True if successful, or raises an exception.
         """
-        text = self.generateRequest('/Projects/' + str(id), 'DELETE', '')
-        return True
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Projects/' + str(id), 'DELETE', '')
+                print 'PASS: deleteProject()'
+                self.tests_passed += 1
+                return True
+            except:
+                print 'FAIL: deleteProject()'
+        else:
+            text = self.generateRequest('/Projects/' + str(id), 'DELETE', '')
+            return True
     
-    def getProject(self, id):
+    def getProject(self, id, test = False):
         """
         Gets a project's details, identified by its record id, returns a dictionary
         """
-        text = self.generateRequest('/Projects/' + str(id), 'GET', '')
-        return json.loads(text)
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Projects/' + str(id), 'GET', '')
+                project = json.loads(text)
+                print 'PASS: getProject()'
+                self.tests_passed += 1
+                return project
+            except:
+                print 'FAIL: getProject()'
+        else:
+            text = self.generateRequest('/Projects/' + str(id), 'GET', '')
+            return json.loads(text)
     
     def getProjects(self, top=None, skip=None, orderby=None, filters=None, test = False):
         """
