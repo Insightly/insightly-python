@@ -2145,27 +2145,51 @@ class Insightly():
         
         To request a sample item, call addOrganization('sample')
         """
-        if type(organization) is str:
-            if organization == 'sample':
-                organizations = self.getOrganizations(top=1)
-                return organizations[0]
+        if test:
+            self.tests_run += 1
+            try:
+                if organization.get('ORGANISATION_ID', 0) > 0:
+                    text = self.generateRequest('/Organisations', 'PUT', json.dumps(organization))
+                else:
+                    text = self.generateRequest('/Organisations', 'POST', json.dumps(organization))
+                self.tests_passed += 1
+                print 'PASS: addOrganization()'
+                return json.loads(text)
+            except:
+                print 'FAIL: addOrganization()'
+        else:
+            if type(organization) is str:
+                if organization == 'sample':
+                    organizations = self.getOrganizations(top=1)
+                    return organizations[0]
+                else:
+                    raise Exception('The parameter organization must be a dictionary with valid fields for an organization, or the string \'sample\' to request a sample object.')
+            elif type(organization) is dict:
+                if organization.get('ORGANISATION_ID', 0) > 0:
+                    text = self.generateRequest('/Organisations', 'PUT', json.dumps(organization))
+                else:
+                    text = self.generateRequest('/Organisations', 'POST', json.dumps(organization))
+                return json.loads(text)
             else:
                 raise Exception('The parameter organization must be a dictionary with valid fields for an organization, or the string \'sample\' to request a sample object.')
-        elif type(organization) is dict:
-            if organization.get('ORGANISATION_ID', 0) > 0:
-                text = self.generateRequest('/Organisations', 'PUT', json.dumps(organization))
-            else:
-                text = self.generateRequest('/Organisations', 'POST', json.dumps(organization))
-            return json.loads(text)
-        else:
-            raise Exception('The parameter organization must be a dictionary with valid fields for an organization, or the string \'sample\' to request a sample object.')
     
     def deleteOrganization(self, id, test = False):
         """
         Delete an organization, identified by its record locator
         """
-        text = self.generateRequest('/Organisations/' + str(id), 'DELETE', '')
-        return True
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Organisations/' + str(id), 'DELETE', '')
+                self.tests_passed += 1
+                print 'PASS: deleteOrganization()'
+                return True
+            except:
+                print 'FAIL: deleteOrganization()'
+                return False
+        else:
+            text = self.generateRequest('/Organisations/' + str(id), 'DELETE', '')
+            return True
     
     def getOrganizations(self, ids=None, domain=None, tag=None, top=None, skip=None, orderby=None, filters=None, test=False):
         """
@@ -2193,20 +2217,51 @@ class Insightly():
             else:
                 querystring += '&ids=' + ids
         querystring = self.ODataQuery(querystring, top=top, skip=skip, orderby=orderby, filters=filters)
-        text = self.generateRequest('/Organisations' + querystring, 'GET', '')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Organisations' + querystring, 'GET', '')
+                orgs = self.dictToList(json.loads(text))
+                self.tests_passed += 1
+                print 'PASS: getOrganizations() found ' + str(len(orgs)) + ' Organizations'
+                return orgs
+            except:
+                print 'FAIL: getOrganizations()'
+        else:
+            text = self.generateRequest('/Organisations' + querystring, 'GET', '')
+            return self.dictToList(json.loads(text))
         
     def getOrganization(self, id, test=False):
         """
         Gets an organization, identified by its record id, returns a dictionary
         """
-        text = self.generateRequest('/Organisations/' + str(id), 'GET', '')
-        return json.loads(text)
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Organisations/' + str(id), 'GET', '')
+                self.tests_passed += 1
+                print 'PASS: getOrganization()'
+                return json.loads(text)
+            except:
+                print 'FAIL: getOrganization()'
+        else:
+            text = self.generateRequest('/Organisations/' + str(id), 'GET', '')
+            return json.loads(text)
     
     def getOrganizationEmails(self, id, test=False):
         """
         Gets a list of emails attached to an organization, identified by its record id, returns a list of dictionaries
         """
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Organisations/' + str(id) + '/Emails', 'GET', '')
+                self.tests_passed += 1
+                emails = self.dictToList(json.loads(text))
+                print 'PASS: getOrganizationEmails() found ' + str(len(emails)) + ' Emails'
+                return emails
+            except:
+                print 'FAIL: getOrganizationEmails()'
         text = self.generateRequest('/Organisations/' + str(id) + '/Emails', 'GET', '')
         return self.dictToList(json.loads(text))
     
@@ -2214,15 +2269,37 @@ class Insightly():
         """
         Gets a list of notes attached to an organization, identified by its record id, returns a list of dictionaries
         """
-        text = self.generateRequest('/Organisations/' + str(id) + '/Notes', 'GET', '')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Organisations/' + str(id) + '/Notes', 'GET', '')
+                notes = self.dictToList(json.loads(text))
+                print 'PASS: getOrganizationNotes() found ' + str(len(notes)) + ' Notes'
+                self.tests_passed += 1
+                return notes
+            except:
+                print 'FAIL: getOrganizationNotes()'
+        else:
+            text = self.generateRequest('/Organisations/' + str(id) + '/Notes', 'GET', '')
+            return self.dictToList(json.loads(text))
     
     def getOrganizationTasks(self, id, test=False):
         """
         Gets a list of tasks attached to an organization, identified by its record id, returns a list of dictionaries
         """
-        text = self.generateRequest('/Organisations/' + str(id) + '/Tasks', 'GET', '')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Organisations/' + str(id) + '/Tasks', 'GET', '')
+                tasks = self.dictToList(json.loads(text))
+                self.tests_passed += 1
+                print 'PASS: getOrganizationTasks() found ' + str(len(tasks)) + ' Tasks'
+                return tasks
+            except:
+                print 'FAIL: getOrganizationTasks()'
+        else:    
+            text = self.generateRequest('/Organisations/' + str(id) + '/Tasks', 'GET', '')
+            return self.dictToList(json.loads(text))
     
     #
     # Following are methods for pipelines
@@ -2544,7 +2621,7 @@ class Insightly():
     # Following are methods related to tasks, and items attached to them
     #
     
-    def addTask(self, task):
+    def addTask(self, task, test = False):
         """
         Add/update a task on Insightly. Submit the task details as a dictionary.
         
@@ -2559,18 +2636,42 @@ class Insightly():
             else:
                 raise Exception('task must be a dictionary with valid task data fields, or the string \'sample\' to request a sample object')
         else:
-            if task.get('TASK_ID',0) > 0:
-                text = self.generateRequest('/Tasks', 'PUT', json.dumps(task))
+            if test:
+                self.tests_run += 1
+                try:
+                    if task.get('TASK_ID',0) > 0:
+                        text = self.generateRequest('/Tasks', 'PUT', json.dumps(task))
+                    else:
+                        text = self.generateRequest('/Tasks', 'POST', json.dumps(task))
+                    task = json.loads(text)
+                    print 'PASS: addTask()'
+                    self.tests_passed += 1
+                    return task
+                except:
+                    print 'FAIL: addTask()'
             else:
-                text = self.generateRequest('/Tasks', 'POST', json.dumps(task))
-            return json.loads(text)
+                if task.get('TASK_ID',0) > 0:
+                    text = self.generateRequest('/Tasks', 'PUT', json.dumps(task))
+                else:
+                    text = self.generateRequest('/Tasks', 'POST', json.dumps(task))
+                return json.loads(text)
     
-    def deleteTask(self, id):
+    def deleteTask(self, id, test = False):
         """
         Deletes a task, identified by its record ID, returns True if successful or raises an exception
         """
-        text = self.generateRequest('/Tasks/' + str(id), 'DELETE', '')
-        return True
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Tasks/' + str(id), 'DELETE', '')
+                print 'PASS: deleteTask()'
+                self.tests_passed += 1
+                return True
+            except:
+                print 'FAIL: deleteTask()'
+        else:
+            text = self.generateRequest('/Tasks/' + str(id), 'DELETE', '')
+            return True
 
     def getTasks(self, ids=None, top=None, skip=None, orderby=None, filters=None, test = False):
         """
@@ -2606,21 +2707,43 @@ class Insightly():
             text = self.generateRequest('/Tasks' + querystring, 'GET', '')
             return self.dictToList(json.loads(text))
     
-    def getTask(self, id):
+    def getTask(self, id, test = False):
         """
         Gets a task, identified by its record id
         """
-        text = self.generateRequest('/Tasks/' + str(id), 'GET', '')
-        return json.loads(text)
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Tasks/' + str(id), 'GET', '')
+                self.tests_passed += 1
+                print 'PASS: getTask()'
+                return json.loads(text)
+            except:
+                print 'FAIL: getTask()'
+        else:
+            text = self.generateRequest('/Tasks/' + str(id), 'GET', '')
+            return json.loads(text)
     
-    def getTaskComments(self, id):
+    def getTaskComments(self, id, test = False):
         """
         Gets a list of comments attached to a task, identified by its record id, returns a list of dictionaries
         """
-        text = self.generateRequest('/Tasks/' + str(id) + '/Comments', 'GET', '')
-        return self.dictToList(json.loads(text))
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Tasks/' + str(id) + '/Comments', 'GET', '')
+                comments = self.dictToList(json.loads(text))
+                print 'PASS: getTaskComments() found ' + str(len(comments)) + ' Comments'
+                self.tests_passed += 1
+                return comments
+            except:
+                print 'FAIL: getTaskComments()'
+
+        else:
+            text = self.generateRequest('/Tasks/' + str(id) + '/Comments', 'GET', '')
+            return self.dictToList(json.loads(text))
     
-    def addTaskComment(self, id, comment):
+    def addTaskComment(self, id, comment, test = False):
         """
         Adds a comment to a task, the comment dictionary should have the following fields:
         
@@ -2630,6 +2753,7 @@ class Insightly():
         
         NOTE: this function is not yet 100%, going over details of data expected with engineering.
         """
+        # TODO: automate test case for this
         json = json.dumps(comment)
         text = self.generateRequest('/Tasks/' + str(id) + '/Comments', 'POST', json)
         return json.loads(text)
