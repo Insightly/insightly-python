@@ -262,9 +262,17 @@ class Insightly():
             if category is not None:
                 self.deleteFileCategory(category['CATEGORY_ID'])            # delete file category
                 
-            #
-            # TODO: add Leads related endpoints
-            #
+            leads = self.getLeads(test = True)
+            if leads is not None:
+                lead = leads[0]
+                lead = self.getLead(lead['LEAD_ID'], test = True)
+            lead = dict(
+                NAME = 'Foo',
+                EMAIL = 'foo@bar',
+            )
+            lead = self.addLead(lead, test = True)
+            if lead is not None:
+                self.deleteLead(lead['LEAD_ID'], test = True)
                 
             notes = self.getNotes(test = True)                              # get notes
             if notes is not None:
@@ -1771,7 +1779,7 @@ class Insightly():
                 self.tests_passed += 1
                 return leads
             except:
-                print 'FAIL: getNotes()'
+                print 'FAIL: getLeads()'
     
     def deleteLead(self, id, test = False):
         """
