@@ -456,88 +456,84 @@ class Insightly():
         library, so it is not dependent on third party libraries like Requests
         """
         if self.testmode:
-            ## first try request with bad API key, check for 401 error
-            #if type(url) is not str: raise Exception('url must be a string')
-            #if type(method) is not str: raise Exception('method must be a string')
-            #valid_method = False
-            #response = None
-            #text = ''
-            #if method == 'GET' or method == 'PUT' or method == 'DELETE' or method == 'POST':
-            #    valid_method = True
-            #else:
-            #    raise Exception('parameter method must be GET|DELETE|PUT|UPDATE')
-            ## generate full URL from base url and relative url
-            #full_url = self.baseurl + url
-            #if self.version == '2.2':
-            #    print 'URL: ' + full_url
-            #request = urllib2.Request(full_url)
-            #base64string = base64.encodestring('%s:%s' % (self.apikey, '')).replace('\n', '')
-            #request.add_header("Authorization", "Basic %s" % 'borkborkborkborkbork')   
-            #request.get_method = lambda: method
-            #request.add_header('Content-Type', 'application/json')
-            ## open the URL, if an error code is returned it should raise an exception
-            #if method == 'PUT' or method == 'POST':
-            #    result = urllib2.urlopen(request, data)
-            #else:
-            #    result = urllib2.urlopen(request)
-            # next test with valid API key
-            if type(url) is not str: raise Exception('url must be a string')
-            if type(method) is not str: raise Exception('method must be a string')
-            valid_method = False
-            response = None
-            text = ''
-            if method == 'GET' or method == 'PUT' or method == 'DELETE' or method == 'POST':
-                valid_method = True
-            else:
-                raise Exception('parameter method must be GET|DELETE|PUT|UPDATE')
-            # generate full URL from base url and relative url
-            full_url = self.baseurl + url
-            if self.version == '2.2':
-                print 'URL: ' + full_url
-            request = urllib2.Request(full_url)
-            if alt_auth is not None:
-                request.add_header("Authorization", self.alt_header)
-            else:
-                base64string = base64.encodestring('%s:%s' % (self.apikey, '')).replace('\n', '')
-                request.add_header("Authorization", "Basic %s" % base64string)   
-            request.get_method = lambda: method
-            request.add_header('Content-Type', 'application/json')
-            # open the URL, if an error code is returned it should raise an exception
-            if method == 'PUT' or method == 'POST':
-                result = urllib2.urlopen(request, data)
-            else:
-                result = urllib2.urlopen(request)
-            text = result.read()
-            return text  
+            self.tests_run += 1
+            # run a series of sanity checks to verify authentication, etc
+            try:
+                self.generateTestRequest(url, method, data, alt_auth = 'borkborkborkborkbork')
+                print 'FAIL: bad auth credentials not detected for ' + url
+            except:
+                self.tests_passed += 1
+                print 'PASS: bad auth credentials detected for ' + url
+            # now try with a bad content-type header
+            #self.tests_run += 1
+            #try:
+            #    self.generateTestRequest(url, method, data, content_type='text/html')
+            #    print 'FAIL: bad content-type header not detected for ' + url
+            #except:
+            #    self.tests_passed += 1
+            #    print 'PASS: bad content-type header detected for ' + url
+        if type(url) is not str: raise Exception('url must be a string')
+        if type(method) is not str: raise Exception('method must be a string')
+        valid_method = False
+        response = None
+        text = ''
+        if method == 'GET' or method == 'PUT' or method == 'DELETE' or method == 'POST':
+            valid_method = True
         else:
-            if type(url) is not str: raise Exception('url must be a string')
-            if type(method) is not str: raise Exception('method must be a string')
-            valid_method = False
-            response = None
-            text = ''
-            if method == 'GET' or method == 'PUT' or method == 'DELETE' or method == 'POST':
-                valid_method = True
-            else:
-                raise Exception('parameter method must be GET|DELETE|PUT|UPDATE')
-            # generate full URL from base url and relative url
-            full_url = self.baseurl + url
-            if self.version == '2.2':
-                print 'URL: ' + full_url
-            request = urllib2.Request(full_url)
-            if alt_auth is not None:
-                request.add_header("Authorization", self.alt_header)
-            else:
-                base64string = base64.encodestring('%s:%s' % (self.apikey, '')).replace('\n', '')
-                request.add_header("Authorization", "Basic %s" % base64string)   
-            request.get_method = lambda: method
+            raise Exception('parameter method must be GET|DELETE|PUT|UPDATE')
+        # generate full URL from base url and relative url
+        full_url = self.baseurl + url
+        if self.version == '2.2':
+            print 'URL: ' + full_url
+        request = urllib2.Request(full_url)
+        request.add_header("Accept-Encoding", "gzip")
+        if alt_auth is not None:
+            request.add_header("Authorization", self.alt_header)
+        else:
+            base64string = base64.encodestring('%s:%s' % (self.apikey, '')).replace('\n', '')
+            request.add_header("Authorization", "Basic %s" % base64string)   
+        request.get_method = lambda: method
+        request.add_header('Content-Type', 'application/json')
+        # open the URL, if an error code is returned it should raise an exception
+        if method == 'PUT' or method == 'POST':
+            result = urllib2.urlopen(request, data)
+        else:
+            result = urllib2.urlopen(request)
+        text = result.read()
+        return text
+    
+    def generateTestRequest(self, url, method, data, alt_auth=None, content_type = None):
+        if type(url) is not str: raise Exception('url must be a string')
+        if type(method) is not str: raise Exception('method must be a string')
+        valid_method = False
+        response = None
+        text = ''
+        if method == 'GET' or method == 'PUT' or method == 'DELETE' or method == 'POST':
+            valid_method = True
+        else:
+            raise Exception('parameter method must be GET|DELETE|PUT|UPDATE')
+        # generate full URL from base url and relative url
+        full_url = self.baseurl + url
+        if self.version == '2.2':
+            print 'URL: ' + full_url
+        request = urllib2.Request(full_url)
+        if alt_auth is not None:
+            request.add_header("Authorization", self.alt_header)
+        else:
+            base64string = base64.encodestring('%s:%s' % (self.apikey, '')).replace('\n', '')
+            request.add_header("Authorization", "Basic %s" % base64string)
+        request.get_method = lambda: method
+        if content_type is not None:
+            request.add_header('Content-Type', content_type)
+        else:
             request.add_header('Content-Type', 'application/json')
-            # open the URL, if an error code is returned it should raise an exception
-            if method == 'PUT' or method == 'POST':
-                result = urllib2.urlopen(request, data)
-            else:
-                result = urllib2.urlopen(request)
-            text = result.read()
-            return text    
+        # open the URL, if an error code is returned it should raise an exception
+        if method == 'PUT' or method == 'POST':
+            result = urllib2.urlopen(request, data)
+        else:
+            result = urllib2.urlopen(request)
+        text = result.read()
+        return text    
         
     def ODataQuery(self, querystring, top=None, skip=None, orderby=None, filters=None):
         """
@@ -1702,6 +1698,97 @@ class Insightly():
         else:
             text = self.generateRequest('/FileCategories/' + str(id), 'GET', '')
             return json.loads(text)
+        
+    def addLead(self, lead, test = False):
+        """
+        Add a Lead
+        """
+        if type(lead) is str:
+            if lead == 'sample':
+                leads = self.getLeads(top=1)
+                return lead[0]
+            else:
+                raise Exception('lead must be a dictionary with valid fields, or the string \'sample\' to request a sample object')
+        elif type(lead) is dict:
+            if test:
+                self.tests_run += 1
+                try:
+                    if lead.get('LEAD_ID',0) > 0:
+                        text = self.generateRequest('/Leads', 'PUT', json.dumps(lead))
+                    else:
+                        text = self.generateRequest('/Leads', 'POST', json.dumps(leads))
+                    lead = json.loads(text)
+                    self.tests_passed += 1
+                    print 'PASS: addLead()'
+                    return note
+                except:
+                    print 'FAIL: addLead()'
+            else:
+                if lead.get('LEAD_ID',0) > 0:
+                    text = self.generateRequest('/Leads', 'PUT', json.dumps(lead))
+                else:
+                    text = self.generateRequest('/Leads', 'POST', json.dumps(lead))
+                return json.loads(text)
+        else:
+            return
+    
+    def getLead(self, id, test = False):
+        """
+        Get a Lead
+        
+        This is a stub method for now
+        """
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Leads/' + str(id), 'GET', '')
+                lead = json.loads(text)
+                print 'PASS: getLead()'
+                self.tests_passed += 1
+                return lead
+            except:
+                print 'FAIL: getNote()'
+        else:
+            text = self.generateRequest('/Leads/' + str(id), 'GET', '')
+            lead = json.loads(text)
+            return lead
+    
+    def getLeads(self, test = False):
+        """
+        Get all Leads
+        """
+        if not test:
+            querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=filters)
+            text = self.generateRequest('/Leads' + querystring, 'GET', '')
+            return self.dictToList(json.loads(text))
+        else:
+            self.tests_run += 1
+            try:
+                querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=filters)
+                text = self.generateRequest('/Leads' + querystring, 'GET', '')
+                leads = self.dictToList(json.loads(text))
+                print 'PASS: getLeads() found ' + str(len(notes)) + ' leads'
+                self.tests_passed += 1
+                return leads
+            except:
+                print 'FAIL: getNotes()'
+    
+    def deleteLead(self, id, test = False):
+        """
+        Delete a Lead
+        """
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Leads/' + str(id), 'DELETE', '')
+                print 'PASS: deleteLead()'
+                self.tests_passed += 1
+                return True
+            except:
+                print 'FAIL: deleteLead()'
+        else:
+            text = self.generateRequest('/Leads/' + str(id), 'DELETE', '')
+            return True
     
     def addNote(self, note, test = False):
         """
