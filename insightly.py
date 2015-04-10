@@ -132,13 +132,17 @@ class Insightly():
     Read operations via the API are generally quite straightforward, so if you get struck on a write operation, this is a good workaround,
     as you are probably just missing a required field or using an invalid element ID when referring to something such as a link to a contact.
     """
-    def __init__(self, apikey='', version='2.2'):
+    def __init__(self, apikey='', version='2.2', dev = False):
 	"""
 	Instantiates the class, logs in, and fetches the current list of users. Also identifies the account owner's user ID, which
 	is a required field for some actions. This is stored in the property Insightly.owner_id
 
 	Raises an exception if login or call to getUsers() fails, most likely due to an invalid or missing API key
 	"""
+        if dev:
+            self.domain = 'https://api.insightlydev.com/v'
+        else:
+            self.domain = 'https://api.insight.ly/v'
         self.testmode = False
         if len(apikey) < 1:
             try:
@@ -155,7 +159,7 @@ class Insightly():
             self.tests_run = 0
             self.tests_passed = 0
             if version == '2.1':
-                self.baseurl = 'https://api.insightlydev.com/v' + version
+                self.baseurl = self.domain + version
                 self.users = self.getUsers()
                 self.version = version
                 print 'CONNECTED: found ' + str(len(self.users)) + ' users'
@@ -167,7 +171,7 @@ class Insightly():
                         print 'The account owner is ' + self.owner_name + ' [' + str(self.owner_id) + '] at ' + self.owner_email
                         break
             else:
-                self.baseurl = 'https://api.insightlydev.com/v' + version
+                self.baseurl = self.domain + version
                 self.version = version
                 print 'ASSUME connection proceeded, not all endpoints are implemented yet'
                 self.owner_email = ''
@@ -402,6 +406,7 @@ class Insightly():
             if event is not None:
                 self.deleteEvent(event['EVENT_ID'], test = True)            # delete event
             events = self.getContactEvents(contact_id, test=True)           # get events linked to contact
+            file_attachments = self.getContactFileAttachments(contact_id, test = True)
             tags = self.getContactTags(contact_id, test=True)               # get tags linked to contact
             tag = self.addContactTag(contact_id, 'foo', test=True)
             self.deleteContactTag(contact_id, 'foo', test=True)
@@ -422,6 +427,7 @@ class Insightly():
                 # update the existing note
                 note = self.addNote(note, test = True)
                 self.deleteNote(note['NOTE_ID'], test=True)
+            print str(self.tests_passed) + ' of ' + str(self.tests_run) + ' passed'
         else:
             print 'Automated test suites only available for versions 2.1 and 2.2'
         self.testmode = False
