@@ -10,6 +10,7 @@
 #
 
 import base64
+import datetime
 import json
 import string
 import urllib
@@ -132,7 +133,7 @@ class Insightly():
     Read operations via the API are generally quite straightforward, so if you get struck on a write operation, this is a good workaround,
     as you are probably just missing a required field or using an invalid element ID when referring to something such as a link to a contact.
     """
-    def __init__(self, apikey='', version='2.2', dev = False):
+    def __init__(self, apikey='', version='2.2', dev =None):
 	"""
 	Instantiates the class, logs in, and fetches the current list of users. Also identifies the account owner's user ID, which
 	is a required field for some actions. This is stored in the property Insightly.owner_id
@@ -140,7 +141,7 @@ class Insightly():
 	Raises an exception if login or call to getUsers() fails, most likely due to an invalid or missing API key
 	"""
         if dev:
-            self.domain = 'https://api.insightlydev.com/v'
+            self.domain = 'https://api.insightly' + dev + '.com/v'
         else:
             self.domain = 'https://api.insight.ly/v'
         self.testmode = False
@@ -212,7 +213,7 @@ class Insightly():
         # call methods in self test mode
         #
         if self.version == '2.1':
-            users = self.getUsers(test = True)                              # get users
+            users = self.getUsers()                              	    # get users
             user_id = users[0]['USER_ID']                                   # get the user ID for the first user on the instance
             accounts = self.getAccount(test = True)                         # get account/instance information
             # comments = self.getComments(test = True)                      # get comments
@@ -269,15 +270,28 @@ class Insightly():
             leads = self.getLeads(test = True)
             if leads is not None:
                 lead = leads[0]
-                lead = self.getLead(lead['LEAD_ID'], test = True)
+		lead_id = lead['LEAD_ID']
+                lead = self.getLead(lead_id, test = True)
+		emails = self.getLeadEmails(lead_id, test = True)
+		notes = self.getLeadNotes(lead_id, test = True)
+		tasks = self.getLeadTasks(lead_id, test = True)
             lead = dict(
-                NAME = 'Foo',
-                EMAIL = 'foo@bar',
+                FIRST_NAME = 'Foo' + str(datetime.datetime.now()),
+                LAST_NAME = 'bar' + str(datetime.datetime.now()),
+		EMAIL_ADDRESS = 'foo@bar',
             )
             lead = self.addLead(lead, test = True)
             if lead is not None:
                 self.deleteLead(lead['LEAD_ID'], test = True)
-                
+            
+	    leadstatuses = self.getLeadStatuses(test = True)
+	    leadstatus = dict(
+		LEAD_STATUS = 'Foozle',
+	    )
+	    leadstatus = self.addLeadStatus(leadstatus, test = True)
+	    if leadstatus is not None:
+		self.deleteLeadStatus(leadstatus.get('LEAD_STATUS_ID', 0), test = True)
+	    
             notes = self.getNotes(test = True)                              # get notes
             if notes is not None:
                 note = notes[0]
@@ -392,6 +406,7 @@ class Insightly():
             contactinfo = self.addContactContactInfo(contact_id, contactinfo, test = True)
             if contactinfo is not None:
                 self.deleteContactContactInfo(contact_id, contactinfo['CONTACT_INFO_ID'], test = True)
+	    links = self.getContactLinks(contact_id, test = True)
             events = self.getEvents(test=True)
             event = dict(
                 TITLE = 'Test Event',
@@ -500,7 +515,6 @@ class Insightly():
         if self.version == '2.2':
             print 'URL: ' + full_url
         request = urllib2.Request(full_url)
-        request.add_header("Accept-Encoding", "gzip")
         if alt_auth is not None:
             request.add_header("Authorization", self.alt_header)
         else:
@@ -1278,6 +1292,25 @@ class Insightly():
             text = self.generateRequest('/Contacts/' + str(contact_id) + '/FileAttachments', 'GET', '')
             file_attachments = self.dictToList(json.loads(text))
             return file_attachments
+	
+    def getContactLinks(self, contact_id, test = False):
+	"""
+	Gets a list of the links attached to a contact, identified by its record locator. Returns a list of dictionaries.
+	"""
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Contacts/' + str(contact_id) + '/Links', 'GET', '')
+                links = self.dictToList(json.loads(text))
+                print 'PASS: getContactLinks() found ' + str(len(notes)) + ' links'
+                self.tests_passed += 1
+                return links
+            except:
+                print 'FAIL: getContactLinks()'
+        else:
+            text = self.generateRequest('/Contacts/' + str(contact_id) + '/Links', 'GET', '')
+            links = self.dictToList(json.loads(text))
+            return links
     
     def getContactNotes(self, contact_id, test = False):
         """
@@ -1720,7 +1753,7 @@ class Insightly():
         if type(lead) is str:
             if lead == 'sample':
                 leads = self.getLeads(top=1)
-                return lead[0]
+                return leads[0]
             else:
                 raise Exception('lead must be a dictionary with valid fields, or the string \'sample\' to request a sample object')
         elif type(lead) is dict:
@@ -1730,11 +1763,11 @@ class Insightly():
                     if lead.get('LEAD_ID',0) > 0:
                         text = self.generateRequest('/Leads', 'PUT', json.dumps(lead))
                     else:
-                        text = self.generateRequest('/Leads', 'POST', json.dumps(leads))
+                        text = self.generateRequest('/Leads', 'POST', json.dumps(lead))
                     lead = json.loads(text)
                     self.tests_passed += 1
                     print 'PASS: addLead()'
-                    return note
+                    return lead
                 except:
                     print 'FAIL: addLead()'
             else:
@@ -1761,7 +1794,7 @@ class Insightly():
                 self.tests_passed += 1
                 return lead
             except:
-                print 'FAIL: getNote()'
+                print 'FAIL: getLead()'
         else:
             text = self.generateRequest('/Leads/' + str(id), 'GET', '')
             lead = json.loads(text)
@@ -1778,14 +1811,68 @@ class Insightly():
         else:
             self.tests_run += 1
             try:
-                querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=filters)
-                text = self.generateRequest('/Leads' + querystring, 'GET', '')
+                # querystring = self.ODataQuery('', top=top, skip=skip, orderby=orderby, filters=filters)
+                text = self.generateRequest('/Leads', 'GET', '')
                 leads = self.dictToList(json.loads(text))
-                print 'PASS: getLeads() found ' + str(len(notes)) + ' leads'
+                print 'PASS: getLeads() found ' + str(len(leads)) + ' leads'
                 self.tests_passed += 1
                 return leads
             except:
                 print 'FAIL: getLeads()'
+		
+    def getLeadEmails(self, id, test=False):
+        """
+        Get Emails attached to a lead
+        """
+        if not test:
+            text = self.generateRequest('/Leads/' + str(id) + '/Emails', 'GET', '')
+            return self.dictToList(json.loads(text))
+        else:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Leads/' + str(id) + '/Emails', 'GET', '')
+                emails  = self.dictToList(json.loads(text))
+                print 'PASS: getLeadEmails() found ' + str(len(emails)) + ' emails'
+                self.tests_passed += 1
+                return emails
+            except:
+                print 'FAIL: getLeadEmails()'
+    
+    def getLeadNotes(self, id, test=False):
+        """
+        Get Notes attached to a lead
+        """
+        if not test:
+            text = self.generateRequest('/Leads/' + str(id) + '/Notes', 'GET', '')
+            return self.dictToList(json.loads(text))
+        else:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Leads/' + str(id) + '/Notes', 'GET', '')
+                notes  = self.dictToList(json.loads(text))
+                print 'PASS: getLeadNotes() found ' + str(len(notes)) + ' notes'
+                self.tests_passed += 1
+                return notes
+            except:
+                print 'FAIL: getLeadNotes()'
+    
+    def getLeadTasks(self, id, test=False):
+        """
+        Get Tasks attached to a lead
+        """
+        if not test:
+            text = self.generateRequest('/Leads/' + str(id) + '/Tasks', 'GET', '')
+            return self.dictToList(json.loads(text))
+        else:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/Leads/' + str(id) + '/Tasks', 'GET', '')
+                tasks  = self.dictToList(json.loads(text))
+                print 'PASS: getLeadTasks() found ' + str(len(tasks)) + ' tasks'
+                self.tests_passed += 1
+                return tasks
+            except:
+                print 'FAIL: getLeadTasks()'
     
     def deleteLead(self, id, test = False):
         """
@@ -1803,6 +1890,143 @@ class Insightly():
         else:
             text = self.generateRequest('/Leads/' + str(id), 'DELETE', '')
             return True
+	
+    def addLeadSource(self, leadsource, test=False):
+        """
+        Add a Lead Source
+        """
+        if type(leadsource) is str:
+            if leadsource == 'sample':
+                leadsources = self.getLeadSources(top=1)
+                return leadsources[0]
+            else:
+                raise Exception('leadsource must be a dictionary with valid fields, or the string \'sample\' to request a sample object')
+        elif type(leadsource) is dict:
+            if test:
+                self.tests_run += 1
+                try:
+                    if leadsource.get('LEAD_SOURCE_ID',0) > 0:
+                        text = self.generateRequest('/LeadStatuses', 'PUT', json.dumps(leadsource))
+                    else:
+                        text = self.generateRequest('/LeadStatuses', 'POST', json.dumps(leadsource))
+                    leadsource = json.loads(text)
+                    self.tests_passed += 1
+                    print 'PASS: addLeadSource()'
+                    return leadsource
+                except:
+                    print 'FAIL: addLeadSource()'
+            else:
+                if leadsource.get('LEAD_ID',0) > 0:
+                    text = self.generateRequest('/LeadStatuses', 'PUT', json.dumps(leadsource))
+                else:
+                    text = self.generateRequest('/LeadStatuses', 'POST', json.dumps(leadsource))
+                return json.loads(text)
+        else:
+            return
+    
+    def deleteLeadSource(self, id, test=False):
+        """
+        Delete a Lead Source
+        """
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/LeadSources/' + str(id), 'DELETE', '')
+                print 'PASS: deleteLeadSource()'
+                self.tests_passed += 1
+                return True
+            except:
+                print 'FAIL: deleteLeadSource()'
+        else:
+            text = self.generateRequest('/LeadSources/' + str(id), 'DELETE', '')
+            return True
+    
+    def getLeadSources(self, test=False):
+        """
+        Get all Lead Sources
+        """
+        if not test:
+            text = self.generateRequest('/LeadSources', 'GET', '')
+            return self.dictToList(json.loads(text))
+        else:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/LeadSources', 'GET', '')
+                leadsources = self.dictToList(json.loads(text))
+                print 'PASS: getLeadSources() found ' + str(len(leadsources)) + ' leadsources'
+                self.tests_passed += 1
+                return leadsources
+            except:
+                print 'FAIL: getLeadSources()'
+	
+    def addLeadStatus(self, leadstatus, test=False):
+        """
+        Add a Lead Status
+        """
+        if type(leadstatus) is str:
+            if leadstatus == 'sample':
+                leadstatuses = self.getLeadStatuses(top=1)
+                return leadstatuses[0]
+            else:
+                raise Exception('leadstatus must be a dictionary with valid fields, or the string \'sample\' to request a sample object')
+        elif type(leadstatus) is dict:
+            if test:
+                self.tests_run += 1
+                try:
+                    if leadstatus.get('LEAD_STATUS_ID',0) > 0:
+                        text = self.generateRequest('/LeadStatuses', 'PUT', json.dumps(leadstatus))
+                    else:
+                        text = self.generateRequest('/LeadStatuses', 'POST', json.dumps(leadstatus))
+                    leadstatus = json.loads(text)
+                    self.tests_passed += 1
+                    print 'PASS: addLeadStatus()'
+                    return leadstatus
+                except:
+                    print 'FAIL: addLeadStatus()'
+            else:
+                if leadstatus.get('LEAD_ID',0) > 0:
+                    text = self.generateRequest('/LeadStatuses', 'PUT', json.dumps(leadstatus))
+                else:
+                    text = self.generateRequest('/LeadStatuses', 'POST', json.dumps(leadstatus))
+                return json.loads(text)
+        else:
+            return
+	
+    def deleteLeadStatus(self, id, test=False):
+        """
+        Delete a Lead Status
+        """
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/LeadStatuses/' + str(id), 'DELETE', '')
+                print 'PASS: deleteLeadStatus()'
+                self.tests_passed += 1
+                return True
+            except:
+                print 'FAIL: deleteLeadStatus()'
+        else:
+            text = self.generateRequest('/LeadStatuses/' + str(id), 'DELETE', '')
+            return True
+    
+    def getLeadStatuses(self, test=False):
+        """
+        Get all Lead Statuses
+        """
+        if not test:
+            text = self.generateRequest('/LeadStatuses', 'GET', '')
+            return self.dictToList(json.loads(text))
+        else:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest('/LeadStatuses', 'GET', '')
+                leadstatuses = self.dictToList(json.loads(text))
+                print 'PASS: getLeadStatuses() found ' + str(len(leadstatuses)) + ' leads'
+                self.tests_passed += 1
+                return leadstatuses
+            except:
+                print 'FAIL: getLeadStatuses()'
+    
     
     def addNote(self, note, test = False):
         """
@@ -3092,6 +3316,7 @@ class Insightly():
                 self.tests_run += 1
         else:
             text = self.generateRequest('/Users', 'GET', '')
+	    print text
             return json.loads(text)
     
     def getUser(self, id, test = False):
