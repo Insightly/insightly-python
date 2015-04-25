@@ -200,21 +200,46 @@ class Insightly():
 	    else:
 		print "Loading sample data for use in automated test suite"
 		
-		contacts = self.getContacts()
+		print "Loading contacts"
+		contacts = self.getContacts(top=10)
 		if contacts is not None:
 		    self.test_data['CONTACT'] = contacts[0]
-		
-		leads = self.getLeads()
+		print "Loading emails"
+		emails = self.getEmails(top=10)
+		if emails is not None:
+		    self.test_data['EMAIL'] = emails[0]
+		print "Loading events"
+		events = self.getEvents(top=10)
+		if events is not None:
+		    self.test_data['EVENT'] = events[0]
+		print "Loading leads"
+		leads = self.getLeads(top=10)
 		if leads is not None:
 		    self.test_data['LEAD'] = leads[0]
-		    
-		notes = self.getNotes()
+		print "Loading notes"
+		notes = self.getNotes(top=10)
 		if notes is not None:
 		    self.test_data['NOTE'] = notes[0]
-		    
-		tasks = self.getTasks()
+		print "Loading opportunities"
+		opportunities = self.getOpportunities(top=10)
+		if opportunities is not None:
+		    self.test_data['OPPORTUNITY'] = opportunities[0]
+		print "Loading organizations"
+		organizations = self.getOrganizations(top=10)
+		if organizations is not None:
+		    self.test_data['ORGANIZATION'] = organizations[0]
+		print "Loading projects"
+		projects = self.getProjects(top=10)
+		if projects is not None:
+		    self.test_data['PROJECT'] = projects[0]
+		print "Loading tasks"
+		tasks = self.getTasks(top=10)
 		if tasks is not None:
 		    self.test_data['TASK'] = tasks[0]
+		print "Loading users"
+		users = self.getUsers()
+		if users is not None:
+		    self.test_data['USER'] = users[0]
     
     def test(self):
         """
@@ -429,7 +454,7 @@ class Insightly():
                 text = self.generateRequest('/Accounts', 'GET', '')
             return json.loads(text)
     
-    def deleteComment(self, id, test = False):
+    def deleteComment(self, id=None, test = False):
         """
         Delete a comment, expects the comment's ID (unique record locator).
         """
@@ -475,6 +500,7 @@ class Insightly():
         """
         Creates or updates a comment. If you are updating an existing comment, be sure to include the comment_id
         """
+	# TODO: this looks different than other handlers, should make it consistent with the others and add to test suite
         if len(body) < 1:
             raise Exception('Comment body cannot be empty')
             return
@@ -1426,7 +1452,7 @@ class Insightly():
             emails = self.dictToList(json.loads(text))
             return emails
         
-    def getEmail(self, id, test = False):
+    def getEmail(self, id=None, test = False):
         """
         Returns an invidivual email, identified by its record locator id
         
@@ -1513,7 +1539,7 @@ class Insightly():
             comment = json.loads(text)
             return comment
     
-    def addEvent(self, event, test = False):
+    def addEvent(self, event=None, test = False):
         """
         Add or update an event in the calendar.
         
@@ -1524,30 +1550,37 @@ class Insightly():
             if event == 'sample':
                 events = self.getEvents(top=1)
                 return events[0]
-        elif type(event) is dict:
-            if test:
-                self.tests_run += 1
-                try:
-                    if event.get('EVENT_ID', 0) > 0:
-                        text = self.generateRequest('/Events', 'PUT', json.dumps(event))
-                    else:
-                        text = self.generateRequest('/Events', 'POST', json.dumps(event))
-                    event = json.loads(text)
-                    self.tests_passed += 1
-                    print 'PASS: addEvent()'
-                    return event
-                except:
-                    print 'FAIL: addEvent()'
-            else:
-                if event.get('EVENT_ID', 0) > 0:
-                    text = self.generateRequest('/Events', 'PUT', json.dumps(event))
-                else:
-                    text = self.generateRequest('/Events', 'POST', json.dumps(event))
-                return json.loads(text)
-        else:
-            raise Exception('The parameter event should be a dictionary with valid fields for an event object, or the string \'sample\' to request a sample object.')
+	if test:
+	    self.tests_run += 1
+	    if event is None:
+		event = dict(
+		    TITLE = 'foozle',
+		    START_DATE_UTC = '2015-04-20 04:20:00',
+		    END_DATE_UTC = '2015-04-20 16:20:00',
+		)
+	    try:
+		if event.get('EVENT_ID', 0) > 0:
+		    text = self.generateRequest('/Events', 'PUT', json.dumps(event))
+		else:
+		    text = self.generateRequest('/Events', 'POST', json.dumps(event))
+		event = json.loads(text)
+		self.tests_passed += 1
+		print 'PASS: addEvent()'
+		if event is not None:
+		    self.deleteEvent(id = event.get('EVENT_ID',None), test = True)
+	    except:
+		print 'FAIL: addEvent()'
+	else:
+	    if type(event) is dict:
+		if event.get('EVENT_ID', 0) > 0:
+		    text = self.generateRequest('/Events', 'PUT', json.dumps(event))
+		else:
+		    text = self.generateRequest('/Events', 'POST', json.dumps(event))
+		return json.loads(text)
+	    else:
+		raise Exception('The parameter event should be a dictionary with valid fields for an event object, or the string \'sample\' to request a sample object.')
     
-    def deleteEvent(self, id, test = False):
+    def deleteEvent(self, id=None, test = False):
         """
         Deletes an event, identified by its record id
         """
@@ -1593,13 +1626,15 @@ class Insightly():
             text = self.generateRequest('/Events' + querystring, 'GET', '')
             return self.dictToList(json.loads(text))
 
-    def getEvent(self, id, test = False):
+    def getEvent(self, id=None, test = False):
         """
         gets an individual event, identified by its record id
         
         Returns a dictionary
         """
         if test:
+	    if id is None:
+		id = self.getTestData(name='EVENT').get('EVENT_ID', None)
             self.tests_run += 1
             try:
                 text = self.generateRequest('/Events/' + str(id), 'GET', '')
@@ -2542,12 +2577,14 @@ class Insightly():
             text = self.generateRequest('/Organisations' + querystring, 'GET', '')
             return self.dictToList(json.loads(text))
         
-    def getOrganization(self, id, test=False):
+    def getOrganization(self, id=None, test=False):
         """
         Gets an organization, identified by its record id, returns a dictionary
         """
         if test:
             self.tests_run += 1
+	    if id is None:
+		id = self.test_data['ORGANIZATION'].get('ORGANISATION_ID', None)
             try:
                 text = self.generateRequest('/Organisations/' + str(id), 'GET', '')
                 self.tests_passed += 1
@@ -2559,12 +2596,14 @@ class Insightly():
             text = self.generateRequest('/Organisations/' + str(id), 'GET', '')
             return json.loads(text)
     
-    def getOrganizationEmails(self, id, test=False):
+    def getOrganizationEmails(self, id=None, test=False):
         """
         Gets a list of emails attached to an organization, identified by its record id, returns a list of dictionaries
         """
         if test:
             self.tests_run += 1
+	    if id is None:
+		id = self.test_data['ORGANIZATION'].get('ORGANISATION_ID', None)
             try:
                 text = self.generateRequest('/Organisations/' + str(id) + '/Emails', 'GET', '')
                 self.tests_passed += 1
@@ -2576,12 +2615,14 @@ class Insightly():
         text = self.generateRequest('/Organisations/' + str(id) + '/Emails', 'GET', '')
         return self.dictToList(json.loads(text))
     
-    def getOrganizationNotes(self, id, test=False):
+    def getOrganizationNotes(self, id=None, test=False):
         """
         Gets a list of notes attached to an organization, identified by its record id, returns a list of dictionaries
         """
         if test:
             self.tests_run += 1
+	    if id is None:
+		id = self.test_data['ORGANIZATION'].get('ORGANISATION_ID', None)
             try:
                 text = self.generateRequest('/Organisations/' + str(id) + '/Notes', 'GET', '')
                 notes = self.dictToList(json.loads(text))
@@ -2594,12 +2635,14 @@ class Insightly():
             text = self.generateRequest('/Organisations/' + str(id) + '/Notes', 'GET', '')
             return self.dictToList(json.loads(text))
     
-    def getOrganizationTasks(self, id, test=False):
+    def getOrganizationTasks(self, id=None, test=False):
         """
         Gets a list of tasks attached to an organization, identified by its record id, returns a list of dictionaries
         """
         if test:
             self.tests_run += 1
+	    if id is None:
+		id = self.test_data['ORGANIZATION'].get('ORGANISATION_ID', None)
             try:
                 text = self.generateRequest('/Organisations/' + str(id) + '/Tasks', 'GET', '')
                 tasks = self.dictToList(json.loads(text))
@@ -2674,7 +2717,7 @@ class Insightly():
             text = self.generateRequest('/PipelineStages','GET','')
             return self.dictToList(json.loads(text))
         
-    def getPipelineStage(self, id, test = False):
+    def getPipelineStage(self, id=None, test = False):
         """
         Gets a pipeline stage, identified by its unique record id
         """
@@ -2876,12 +2919,14 @@ class Insightly():
             text = self.generateRequest('/Projects' + querystring, 'GET', '')
             return self.dictToList(json.loads(text))
     
-    def getProjectEmails(self, id, test = False):
+    def getProjectEmails(self, id=None, test = False):
         """
         Gets a list of emails attached to a project, identified by its record id, returns a list of dictionaries
         """
         if test:
             self.tests_run += 1
+	    if id is None:
+		id = self.test_data['PROJECT'].get('PROJECT_ID', None)
             try:
                 text = self.generateRequest('/Projects/' + str(id) + '/Emails', 'GET', '')
                 emails = self.dictToList(json.loads(text))
@@ -2894,12 +2939,14 @@ class Insightly():
             text = self.generateRequest('/Projects/' + str(id) + '/Emails', 'GET', '')
             return self.dictToList(json.loads(text))
 
-    def getProjectNotes(self, id, test = False):
+    def getProjectNotes(self, id=None, test = False):
         """
         Gets a list of notes attached to a project, identified by its record id, returns a list of dictionaries
         """
         if test:
             self.tests_run += 1
+	    if id is None:
+		id = self.test_data['PROJECT'].get('PROJECT_ID', None)
             try:
                 text = self.generateRequest('/Projects/' + str(id) + '/Notes', 'GET', '')
                 notes = self.dictToList(json.loads(text))
@@ -2912,12 +2959,14 @@ class Insightly():
             text = self.generateRequest('/Projects/' + str(id) + '/Notes', 'GET', '')
             return self.dictToList(json.loads(text))
     
-    def getProjectTasks(self, id, test = False):
+    def getProjectTasks(self, id=None, test = False):
         """
         Gets a list of tasks attached to a project, identified by its record id, returns a list of dictionaries
         """
         if test:
             self.tests_run += 1
+	    if id is None:
+		id = self.test_data['PROJECT'].get('PROJECT_ID', None)
             try:
                 text = self.generateRequest('/Projects/' + str(id) + '/Tasks', 'GET', '')
                 tasks = self.dictToList(json.loads(text))
@@ -2988,10 +3037,13 @@ class Insightly():
                 raise Exception('task must be a dictionary with valid task data fields, or the string \'sample\' to request a sample object')
         else:
             if test:
+		user = self.test_data['USER']
 		task = dict(
 		    TITLE = 'foozle barzle',
 		    PUBLICLY_VISIBLE = True,
 		    COMPLETED = False,
+		    OWNER_USER_ID = user['USER_ID'],
+		    RESPONSIBLE_USER_ID = user['USER_ID'],
 		)
                 self.tests_run += 1
                 try:
