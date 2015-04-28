@@ -104,13 +104,14 @@ class Insightly():
 	#
 	self.object_types = [{'object_type':'contact','endpoint':'contacts','object_id':'CONTACT_ID',
 				    'example':{'FIRST_NAME':'Testy','LAST_NAME':'McTesterson','SALUTATION':'Mr'},
-				    'v21_sub_types':['emails','notes','tasks','image']},
+				    'v21_sub_types':['emails','notes','tasks']},
 			    {'object_type':'country','endpoint':'countries','object_id':None},
 			    {'object_type':'currency','endpoint':'currencies','object_id':None},
 			    {'object_type':'customfield','endpoint':'customfields','object_id':'CUSTOM_FIELD_ID'},
 			    {'object_type':'email','endpoint':'emails','object_id':'EMAIL_ID',
 				    'v21_sub_types':['comments']},
-			    {'object_type':'event','endpoint':'events','object_id':'EVENT_ID','example':{'TITLE':'Example Event','START_DATE_UTC':'2015-08-15 14:30:00','END_DATE_UTC':'2015-08-15 15:30:00','PUBLICLY_VISIBLE':True}},
+			    {'object_type':'event','endpoint':'events','object_id':'EVENT_ID',
+				    'example':{'TITLE':'Example Event','START_DATE_UTC':'2015-08-15 14:30:00','END_DATE_UTC':'2015-08-15 15:30:00','PUBLICLY_VISIBLE':True}},
 			    {'object_type':'filecategory','endpoint':'filecategories','object_id':'CATEGORY_ID',
 				    'example':{'CATEGORY_NAME':'Foozle','ACTIVE':True,'BACKGROUND_COLOR':'000000'}},
 			    {'object_type':'lead','endpoint':'leads','object_id':'LEAD_ID',
@@ -121,22 +122,31 @@ class Insightly():
 			    {'object_type':'leadstatus','endpoint':'leadstatuses','object_id':'LEAD_STATUS_ID',
 				    'example':{'LEAD_STATUS':'Example Lead Status'}},
 			    {'object_type':'note','endpoint':'notes','object_id':'NOTE_ID'},
-			    {'object_type':'opportunity','endpoint':'opportunities','object_id':'OPPORTUNITY_ID'},
-			    {'object_type':'opportunitycategory','endpoint':'opportunitycategories','object_id':'CATEGORY_ID'},
+			    {'object_type':'opportunity','endpoint':'opportunities','object_id':'OPPORTUNITY_ID',
+				    'example':{'OPPORTUNITY_NAME':'Test Opportunity','OPPORTUNITY_STATE':'Open'},
+				    'v21_sub_types':['statehistory','emails','notes','tasks']},
+			    {'object_type':'opportunitycategory','endpoint':'opportunitycategories','object_id':'CATEGORY_ID',
+				    'example':{'CATEGORY_NAME':'Foozle','ACTIVE':True,'BACKGROUND_COLOR':'000000'}},
 			    {'object_type':'opportunitystatereason','endpoint':'opportunitystatereasons','object_id':None},
-			    {'object_type':'organisation','endpoint':'organisations','object_id':'ORGANISATION_ID'},
+			    {'object_type':'organisation','endpoint':'organisations','object_id':'ORGANISATION_ID',
+				    'example':{'ORGANISATION_NAME':'Test Organization','BACKGROUND':'This is a test'},
+				    'v21_sub_types':['emails','notes','tasks']},
 			    {'object_type':'pipeline','endpoint':'pipelines','object_id':'PIPELINE_ID'},
 			    {'object_type':'pipelinestage','endpoint':'pipelinestages','object_id':'STAGE_ID'},
-			    {'object_type':'projectcategory','endpoint':'projectcategories','object_id':'CATEGORY_ID'},
-			    {'object_type':'project','endpoint':'projects','object_id':'PROJECT_ID'},
+			    {'object_type':'projectcategory','endpoint':'projectcategories','object_id':'CATEGORY_ID',
+				    'example':{'CATEGORY_NAME':'Foozle','ACTIVE':True,'BACKGROUND_COLOR':'000000'}},
+			    {'object_type':'project','endpoint':'projects','object_id':'PROJECT_ID',
+				    'example':{'PROJECT_NAME':'Test Project','STATUS':'In Progress'},
+				    'v21_sub_types':['emails','notes','tasks']},
 			    {'object_type':'relationship','endpoint':'relationships','object_id':None},
 			    {'object_type':'tag','endpoint':'tags','object_id':None},
-			    {'object_type':'task','endpoint':'tasks','object_id':'TASK_ID'},
+			    {'object_type':'task','endpoint':'tasks','object_id':'TASK_ID',
+				    'v21_sub_types':['comments']},
+			    {'object_type':'taskcategory','endpoint':'taskcategories','object_id':'CATEGORY_ID',
+				    'example':{'CATEGORY_NAME':'Foozle','ACTIVE':True,'BACKGROUND_COLOR':'000000'}},
 			    {'object_type':'teammember','endpoint':'teammembers','object_id':'PERMISSION_ID'},
 			    {'object_type':'teams','endpoint':'teams','object_id':'TEAM_ID'},
 			    {'object_type':'users','endpoint':'users','object_id':'USER_ID'}			    ]
-	
-	self.sub_types = ['addresses','contactinfos','emails','events','links']
 	
         if dev:
             self.domain = 'https://api.insightly' + dev + '.com/v'
@@ -230,25 +240,40 @@ class Insightly():
             l.append(data)
             return l
         elif data is None:
-            return list()
+            return
         else:
             return list()
 	
-    def fields(self, object_type):
+    def fields(self, object_type, full_graph=True):
 	"""
 	This function returns a list of the fields associated with an Insightly object.
 	See the documentation at https://api.insight.ly/v2.2/Help for full documentation
-	on required fields, formats, etc. 
+	on required fields, formats, etc. If you set full_graph = True it will return
+	the full object graph for a sample object (this is helpful when exploring the API
+	and expected data types).
 	"""
 	object_type = string.lower(object_type)
-	url = '/' + object_type
-	text = self.generateRequest(url, 'GET', '')
-	results = json.loads(text)
-	fieldlist = list()
-	if len(results) > 0:
-	    result = results[0]
-	    keys = result.keys()
-	    return keys
+	url = None
+	for o in self.object_types:
+	    if o['object_type'] == object_type:
+		url = '/' + o['endpoint']
+	if url is not None:
+	    text = self.generateRequest(url, 'GET', '')
+	    results = json.loads(text)
+	    if full_graph:
+		if len(results) > 0:
+		    return results[0]
+	    else:
+		fieldlist = list()
+		if len(results) > 0:
+		    result = results[0]
+		    keys = result.keys()
+		    return keys
+	else:
+	    object_type_list = ''
+	    for o in self.object_types:
+		object_type_list += o['object_type'] + ' '
+	    raise Exception('Invalid object_type, must be one of ' + object_type_list)
 	
     def findUser(self, email):
 	"""
@@ -472,20 +497,22 @@ class Insightly():
 		    if endpoint is not None:
 			self.tests_run += 1
 			url = endpoint
-			data = self.create(endpoint, data)
-			self.tests_passed += 1
-			print 'PASS: POST ' + self.baseurl + '/' + url
-			if data is not None:
-			    id = data.get(e['object_id'], None)
-			    if id is not None:
-				self.tests_run += 1
-				self.delete(endpoint, id)
-				print 'PASS: DELETE ' + self.baseurl + '/' + url + '/' + endpoint + '/' + str(id)
-				self.tests_passed += 1
-				#except:
-				#    print 'FAIL: DELETE ' + self.baseurl + url + '/' + endpoint + '/' + str(id)
-			#except:
-			#    print 'FAIL: POST ' + self.baseurl + '/' + url
+			try:
+			    data = self.create(endpoint, data)
+			    self.tests_passed += 1
+			    print 'PASS: POST ' + self.baseurl + '/' + url
+			    if data is not None:
+				id = data.get(e['object_id'], None)
+				if id is not None:
+				    self.tests_run += 1
+				    try:
+					self.delete(endpoint, id)
+					print 'PASS: DELETE ' + self.baseurl + '/' + url + '/' + endpoint + '/' + str(id)
+					self.tests_passed += 1
+				    except:
+				        print 'FAIL: DELETE ' + self.baseurl + url + '/' + endpoint + '/' + str(id)
+			except:
+			    print 'FAIL: POST ' + self.baseurl + '/' + url
 	print str(self.tests_passed) + ' of ' + str(self.tests_run) + ' tests passed'
 	
     def update(self, object_type, object_graph, id = None, sub_type = None):
