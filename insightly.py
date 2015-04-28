@@ -25,7 +25,6 @@ class Insightly():
    
     * HTTPS request generation
     * Data type validation
-    * Required field validation
    
     The library is built using Python standard libraries (no third party tools required, so it will run out of the box on most Python
     environments, including Google App Engine). The wrapper functions return native Python objects, typically dictionaries, or lists of
@@ -100,16 +99,27 @@ class Insightly():
 	Raises an exception if login or call to getUsers() fails, most likely due to an invalid or missing API key
 	"""
 	
-	self.object_types = [{'object_type':'contact','endpoint':'contacts','object_id':'CONTACT_ID'},
+	#
+	# Define available object types, their endpoints, sample data for POST/PUT tests, etc
+	#
+	self.object_types = [{'object_type':'contact','endpoint':'contacts','object_id':'CONTACT_ID',
+				    'example':{'FIRST_NAME':'Testy','LAST_NAME':'McTesterson','SALUTATION':'Mr'},
+				    'v21_sub_types':['emails','notes','tasks','image']},
 			    {'object_type':'country','endpoint':'countries','object_id':None},
 			    {'object_type':'currency','endpoint':'currencies','object_id':None},
 			    {'object_type':'customfield','endpoint':'customfields','object_id':'CUSTOM_FIELD_ID'},
-			    {'object_type':'email','endpoint':'emails','object_id':'EMAIL_ID'},
-			    {'object_type':'event','endpoint':'events','object_id':'EVENT_ID'},
-			    {'object_type':'filecategory','endpoint':'filecategories','object_id':'CATEGORY_ID'},
-			    {'object_type':'lead','endpoint':'leads','object_id':'LEAD_ID'},
-			    {'object_type':'leadsource','endpoint':'leadsources','object_id':'LEAD_SOURCE_ID'},
-			    {'object_type':'leadstatus','endpoint':'leadstatuses','object_id':'LEAD_STATUS_ID'},
+			    {'object_type':'email','endpoint':'emails','object_id':'EMAIL_ID',
+				    'v21_sub_types':['comments']},
+			    {'object_type':'event','endpoint':'events','object_id':'EVENT_ID','example':{'TITLE':'Example Event','START_DATE_UTC':'2015-08-15 14:30:00','END_DATE_UTC':'2015-08-15 15:30:00','PUBLICLY_VISIBLE':True}},
+			    {'object_type':'filecategory','endpoint':'filecategories','object_id':'CATEGORY_ID',
+				    'example':{'CATEGORY_NAME':'Foozle','ACTIVE':True,'BACKGROUND_COLOR':'000000'}},
+			    {'object_type':'lead','endpoint':'leads','object_id':'LEAD_ID',
+				    'example':{'FIRST_NAME':'Foozle','LAST_NAME':'McBarzle'},
+				    'v21_sub_types':['emails','notes','tasks']},
+			    {'object_type':'leadsource','endpoint':'leadsources','object_id':'LEAD_SOURCE_ID',
+				    'example':{'LEAD_SOURCE':'Example Lead Source'}},
+			    {'object_type':'leadstatus','endpoint':'leadstatuses','object_id':'LEAD_STATUS_ID',
+				    'example':{'LEAD_STATUS':'Example Lead Status'}},
 			    {'object_type':'note','endpoint':'notes','object_id':'NOTE_ID'},
 			    {'object_type':'opportunity','endpoint':'opportunities','object_id':'OPPORTUNITY_ID'},
 			    {'object_type':'opportunitycategory','endpoint':'opportunitycategories','object_id':'CATEGORY_ID'},
@@ -168,79 +178,43 @@ class Insightly():
                 self.owner_name = ''
         else:
             raise Exception('Python library only supports v2.1 or v2.2 APIs')
-                
-    def getMethods(self, test=False):
-        """
-        Returns a list of the callable methods in this library.
-        """
-        methods = [method for method in dir(self) if callable(getattr(self, method))]
-        return methods
-    
-    def test(self):
-        """
-        This helper function runs a test suite against the API to verify the API and client side methods are working normally.
-        This may not reveal all corner cases, but will do a basic sanity check against the system.
-        
-        USAGE:
-        
-        i = Insightly()
-        i.test()        # run test suite, with no limit on number of records returned by search functions   
-        """
 	
-	endpoints = self.object_types
-	self.tests_run = 0
+    def create(self, object_type, object_graph, id = None, sub_type = None):
+	"""
+	This is a general purpose write method that can be used to create (POST)
+	Insightly objects. 
+	"""
+	object_type = string.lower(object_type)
+	if type(object_graph) is dict:
+	    data = json.dumps(object_graph)
+	    url = '/' + object_type
+	    if id is not None:
+		url += '/' + str(id)
+		if sub_type is not None:
+		    url += '/' + sub_type
+	    text = self.generateRequest(url, 'POST', data)
+	    data = json.loads(text)
+	    return data
+	else:
+	    raise Exception('object_graph must be a Python dictionary')
 	
-	# do basic get all query for each object type
+    def delete(self, object_type, id, sub_type=None, subtype_id = None):
+	"""
+	This is a general purpose delete method that will allow the user to delete Insightly
+	objects (e.g. contacts) and sub_objects (e.g. delete a contact_info linked to an object)
+	"""
+	object_type = string.lower(object_type)
+	url = '/' + object_type
+	if id is not None:
+	    url += '/' + str(id)
+	    if sub_type is not None:
+		url += '/' + sub_type
+		if sub_type_id is not None:
+		    url += '/' + str(sub_type_id)
+	object_type = string.lower(object_type)
+	text = self.generateRequest(url, 'DELETE', '')
+	return True
 	
-	print "Test Suite #1: GET Endpoints"
-	
-	skip_endpoints = ['comments','fileattachments','tags']
-	
-	for e in endpoints:
-	    if e['object_type'] not in skip_endpoints:
-		self.tests_run += 1
-		try:
-		    data = self.read(e['endpoint'])
-		    self.tests_passed += 1
-		    print 'PASS: GET ' + self.baseurl + '/' + e['endpoint']
-		    if len(data) > 0:
-			data = data[0]
-		    if e['object_id'] is not None:
-			self.tests_run += 1
-			id = data[e['object_id']]
-			try:
-			    data = self.read(e['endpoint'], id)
-			    self.tests_passed += 1
-			    print 'PASS: GET ' + self.baseurl + '/' + e['endpoint'] + '/' + str(id)
-			except:
-			    print 'FAIL: GET ' + self.baseurl + '/' + e['endpoint'] + '/' + str(id)
-		except:
-		    print 'FAIL: GET ' + self.baseurl + '/' + e['endpoint']
-		    
-	contact = dict(
-	    FIRST_NAME = 'Foozle',
-	    LAST_NAME = 'Barzle',
-	)
-	
-	# next add, edit and delete objects
-	
-	self.tests_run += 1
-	try:
-	    contact = self.write('contact', contact)
-	    self.tests_passed += 1
-	    print 'PASS: POST ' + self.baseurl + '/contacts'
-	    if contact is not None:
-		try:
-		    self.delete('contact', contact['CONTACT_ID'])
-		    self.tests_passed += 1
-		    print 'PASS: DELETE ' + self.baseurl + '/contacts/' + contact['CONTACT_ID']
-		except:
-		    print 'FAIL: DELETE ' + self.baseurl + '/contacts/' + contact['CONTACT_ID']
-	except:
-	    print 'FAIL: POST ' + self.baseurl + '/contacts'
-		
-	print str(self.tests_passed) + ' of ' + str(self.tests_run) + ' tests passed'
-        
     def dictToList(self, data):
         """
         This helper function checks to see if the returned data is a list or a lone dict, string, int or float.
@@ -260,60 +234,6 @@ class Insightly():
         else:
             return list()
 	
-    def findUser(self, email):
-	"""
-	Client side function to quickly look up Insightly users by email. Returns a dictionary containing
-	user details or None if not found. This is useful when you need to find the user ID for someone but
-	only know their email addresses, for example when creating and assigning a new project or task. 
-	"""
-	for u in self.users:
-	    if u.get('EMAIL_ADDRESS','') == email:
-		return u
-	    
-    def read(self, object_type, id = None, sub_type=None, top=None, skip=None, orderby=None, filters=None):
-	"""
-	This is a general purpose read method that will allow the user to easily fetch Insightly objects.
-	This will replace the hand built request handlers, which are too numerous to test and support
-	adequately.
-	
-	USAGE:
-	
-	i = Insightly(version=2.1, api_key='foozlebarzle')
-	projects = i.read('projects')
-	for p in projects:
-	    print str(p)
-	"""
-	object_type = string.lower(object_type)
-	url = '/' + object_type
-	if id is not None:
-	    url += '/' + str(id)
-	    if sub_type is not None:
-		url += '/' + sub_type
-	object_type = string.lower(object_type)
-	url += self.ODataQuery('',top=top, skip=skip, orderby=orderby, filters=filters)
-	text = self.generateRequest(url, 'GET', '')
-	return self.dictToList(json.loads(text))
-	
-    def delete(self, object_type, id, sub_type=None, subtype_id = None):
-	"""
-	This is a general purpose delete method that will allow the user to delete Insightly
-	objects (e.g. contacts) and sub_objects (e.g. delete a contact_info linked to an object)
-	"""
-	object_type = string.lower(object_type)
-	url = '/' + object_type
-	if id is not None:
-	    url += '/' + str(id)
-	    if sub_type is not None:
-		url += '/' + sub_type
-		if sub_type_id is not None:
-		    url += '/' + str(sub_type_id)
-	object_type = string.lower(object_type)
-	if object_type in self.object_types:
-	    text = self.generateRequest(url, 'DELETE', '')
-	    return json.loads(text)
-	else:
-	    raise Exception('Invalid object type, must be one of ' + str(self.object_types))
-	
     def fields(self, object_type):
 	"""
 	This function returns a list of the fields associated with an Insightly object.
@@ -330,20 +250,16 @@ class Insightly():
 	    keys = result.keys()
 	    return keys
 	
-    def write(self, object_type, object_graph, id = None, sub_type = None, sub_type_id = None):
+    def findUser(self, email):
 	"""
-	This is a general purpose write method that can be used to create (POST) and update (PUT)
-	Insightly objects. 
+	Client side function to quickly look up Insightly users by email. Returns a dictionary containing
+	user details or None if not found. This is useful when you need to find the user ID for someone but
+	only know their email addresses, for example when creating and assigning a new project or task. 
 	"""
-	object_type = string.lower(object_type)
-	if object_type in self.object_types:
-	    if type(object_graph) is dict:
-		pass
-	    else:
-		raise Exception('object_graph must be a Python dictionary')
-	else:
-	    raise Exception('Invalid object type, must be one of ' + str(self.object_types))
-	
+	for u in self.users:
+	    if u.get('EMAIL_ADDRESS','') == email:
+		return u
+
     def generateRequest(self, url, method, data, alt_auth=None, test=False):
         """
         This method is used by other helper functions to generate HTTPS requests and parse
@@ -421,7 +337,14 @@ class Insightly():
         else:
             result = urllib2.urlopen(request)
         text = result.read()
-        return text    
+        return text
+    
+    def getMethods(self, test=False):
+        """
+        Returns a list of the callable methods in this library.
+        """
+        methods = [method for method in dir(self) if callable(getattr(self, method))]
+        return methods
         
     def ODataQuery(self, querystring, top=None, skip=None, orderby=None, filters=None):
         """
@@ -460,3 +383,127 @@ class Insightly():
             return querystring
         else:
             return ''
+	
+    def read(self, object_type, id = None, sub_type=None, top=None, skip=None, orderby=None, filters=None):
+	"""
+	This is a general purpose read method that will allow the user to easily fetch Insightly objects.
+	This will replace the hand built request handlers, which are too numerous to test and support
+	adequately.
+	
+	USAGE:
+	
+	i = Insightly(version=2.1, api_key='foozlebarzle')
+	projects = i.read('projects')
+	for p in projects:
+	    print str(p)
+	"""
+	object_type = string.lower(object_type)
+	url = '/' + object_type
+	if id is not None:
+	    url += '/' + str(id)
+	    if sub_type is not None:
+		url += '/' + sub_type
+	object_type = string.lower(object_type)
+	url += self.ODataQuery('',top=top, skip=skip, orderby=orderby, filters=filters)
+	text = self.generateRequest(url, 'GET', '')
+	return self.dictToList(json.loads(text))
+    
+    def test(self, section=None):
+        """
+        This helper function runs a test suite against the API to verify the API and client side methods are working normally.
+        This may not reveal all corner cases, but will do a basic sanity check against the system.
+        
+        USAGE:
+        
+        i = Insightly()
+        i.test()        # run test suite, with no limit on number of records returned by search functions   
+        """
+	
+	endpoints = self.object_types
+	self.tests_run = 0
+	
+	# do basic get all query for each object type
+	
+	if section is None or section == 'get':
+	
+	    print "Test v2.1 GET Endpoints"
+	    
+	    skip_endpoints = ['comments','fileattachments','tags']
+	    
+	    for e in endpoints:
+		if e['object_type'] not in skip_endpoints:
+		    self.tests_run += 1
+		    try:
+			data = self.read(e['endpoint'])
+			self.tests_passed += 1
+			print 'PASS: GET ' + self.baseurl + '/' + e['endpoint']
+			if len(data) > 0:
+			    data = data[0]
+			if e['object_id'] is not None:
+			    self.tests_run += 1
+			    id = data[e['object_id']]
+			    try:
+				data = self.read(e['endpoint'], id)
+				self.tests_passed += 1
+				print 'PASS: GET ' + self.baseurl + '/' + e['endpoint'] + '/' + str(id)
+				v21_sub_types = e.get('v21_sub_types', None)
+				if v21_sub_types is not None:
+				    for s in v21_sub_types:
+					self.tests_run += 1
+					try:
+					    data = self.read(e['endpoint'], id, s)
+					    print 'PASS: GET ' + self.baseurl + '/' + e['endpoint'] + '/' + str(id) + '/' + s
+					    self.tests_passed += 1
+					except:
+					    print 'FAIL: GET ' + self.baseurl + '/' + e['endpoint'] + '/' + str(id) + '/' + s
+			    except:
+				print 'FAIL: GET ' + self.baseurl + '/' + e['endpoint'] + '/' + str(id)
+		    except:
+			print 'FAIL: GET ' + self.baseurl + '/' + e['endpoint']
+			
+	if section is None or section == 'post':
+	    
+	    print "Test v2.1 POST endpoints"
+	    
+	    for e in self.object_types:
+		data = e.get('example',None)
+		if data is not None:
+		    endpoint = e.get('endpoint',None)
+		    if endpoint is not None:
+			self.tests_run += 1
+			url = endpoint
+			data = self.create(endpoint, data)
+			self.tests_passed += 1
+			print 'PASS: POST ' + self.baseurl + '/' + url
+			if data is not None:
+			    id = data.get(e['object_id'], None)
+			    if id is not None:
+				self.tests_run += 1
+				self.delete(endpoint, id)
+				print 'PASS: DELETE ' + self.baseurl + '/' + url + '/' + endpoint + '/' + str(id)
+				self.tests_passed += 1
+				#except:
+				#    print 'FAIL: DELETE ' + self.baseurl + url + '/' + endpoint + '/' + str(id)
+			#except:
+			#    print 'FAIL: POST ' + self.baseurl + '/' + url
+	print str(self.tests_passed) + ' of ' + str(self.tests_run) + ' tests passed'
+	
+    def update(self, object_type, object_graph, id = None, sub_type = None):
+	"""
+	This is a general purpose write method that can be used to update (PUT)
+	Insightly objects. 
+	"""
+	object_type = string.lower(object_type)
+	if type(object_graph) is dict:
+	    data = json.dumps(object_graph)
+	    url = '/' + object_type
+	    if id is not None:
+		url += '/' + str(id)
+		if sub_type is not None:
+		    url += '/' + sub_type
+	    text = self.generateRequest(url, 'PUT', data)
+	    data = json.loads(text)
+	    return data
+	else:
+	    raise Exception('object_graph must be a Python dictionary')
+	
