@@ -8,7 +8,6 @@
 # Python client library for v2.1/v2.2 Insightly API
 # Brian McConnell <brian@insight.ly>
 #
-
 import base64
 import datetime
 import json
@@ -102,9 +101,13 @@ class Insightly():
 	#
 	# Define available object types, their endpoints, sample data for POST/PUT tests, etc
 	#
+	# TODO: add bad examples, to test invalid submissions are being caught correctly
+	#
 	self.object_types = [{'object_type':'contact','endpoint':'contacts','object_id':'CONTACT_ID',
+				    'bad_example':{},
 				    'example':{'FIRST_NAME':'Testy','LAST_NAME':'McTesterson','SALUTATION':'Mr'},
-				    'v21_sub_types':['emails','notes','tasks']},
+				    'v21_sub_types':['emails','notes','tasks'],
+				    'v22_sub_types':['addresses','contactinfos','tags','fileattachments','follow','dates','links','contactlinks']},
 			    {'object_type':'country','endpoint':'countries','object_id':None},
 			    {'object_type':'currency','endpoint':'currencies','object_id':None},
 			    {'object_type':'customfield','endpoint':'customfields','object_id':'CUSTOM_FIELD_ID'},
@@ -141,18 +144,42 @@ class Insightly():
 			    {'object_type':'relationship','endpoint':'relationships','object_id':None},
 			    {'object_type':'tag','endpoint':'tags','object_id':None},
 			    {'object_type':'task','endpoint':'tasks','object_id':'TASK_ID',
+				    'bad_example':{'TITLE':'A Bad Task'},
 				    'v21_sub_types':['comments']},
 			    {'object_type':'taskcategory','endpoint':'taskcategories','object_id':'CATEGORY_ID',
 				    'example':{'CATEGORY_NAME':'Foozle','ACTIVE':True,'BACKGROUND_COLOR':'000000'}},
 			    {'object_type':'teammember','endpoint':'teammembers','object_id':'PERMISSION_ID'},
 			    {'object_type':'teams','endpoint':'teams','object_id':'TEAM_ID'},
-			    {'object_type':'users','endpoint':'users','object_id':'USER_ID'}			    ]
+			    {'object_type':'users','endpoint':'users','object_id':'USER_ID'}]
 	
+	#
+	# Define v2.1 child objects and sample data
+	#
+	
+	self.v21_sub_types = [
+	    {'sub_type':'emails','example':{}},
+	    {'sub_type':'tasks','example':{}}
+	]
+	
+	#
+	# Define v2.2 child objects and sample data
+	#
+	
+	self.v22_sub_types = [
+	    {'sub_type':'addresses','example':{}},
+	    {'sub_type':'contactinfos', 'example':{}},
+	    {'sub_type':'links', 'example':{}}
+	]
+	
+	self.version = str(version)
         if dev:
             self.domain = 'https://api.insightly' + dev + '.com/v'
         else:
             self.domain = 'https://api.insight.ly/v'
+	self.filehandle = open('testresults.txt','w')
 	self.baseurl = self.domain + version
+	self.baseurlv21 = self.domain + '2.1'
+	self.baseurlv22 = self.domain + '2.2'
 	self.test_data = dict()
         self.testmode = False
         if len(apikey) < 1:
@@ -312,9 +339,13 @@ class Insightly():
         else:
             raise Exception('parameter method must be GET|DELETE|PUT|UPDATE')
         # generate full URL from base url and relative url
-        full_url = self.baseurl + url
-        if self.version == '2.2':
-            print 'URL: ' + full_url
+	if self.version == '2.1':
+	    full_url = self.baseurlv21 + url
+	elif self.version == '2.2':
+	    full_url = self.baseurlv22 + url
+	else:
+	    full_url = self.baseurl + url
+        # self.printline('URL:  ' + full_url)
         request = urllib2.Request(full_url)
         if alt_auth is not None:
             request.add_header("Authorization", self.alt_header)
@@ -409,6 +440,10 @@ class Insightly():
         else:
             return ''
 	
+    def printline(self, text):
+	print text
+	self.filehandle.write(text + '\n')
+	
     def read(self, object_type, id = None, sub_type=None, top=None, skip=None, orderby=None, filters=None):
 	"""
 	This is a general purpose read method that will allow the user to easily fetch Insightly objects.
@@ -451,17 +486,18 @@ class Insightly():
 	
 	if section is None or section == 'get':
 	
-	    print "Test v2.1 GET Endpoints"
+	    self.printline("Test GET/PUT Endpoints")
 	    
 	    skip_endpoints = ['comments','fileattachments','tags']
 	    
 	    for e in endpoints:
+		self.version='2.1'
 		if e['object_type'] not in skip_endpoints:
 		    self.tests_run += 1
 		    try:
 			data = self.read(e['endpoint'])
 			self.tests_passed += 1
-			print 'PASS: GET ' + self.baseurl + '/' + e['endpoint']
+			self.printline('PASS: GET ' + self.baseurl + '/' + e['endpoint'])
 			if len(data) > 0:
 			    data = data[0]
 			if e['object_id'] is not None:
@@ -470,25 +506,36 @@ class Insightly():
 			    try:
 				data = self.read(e['endpoint'], id)
 				self.tests_passed += 1
-				print 'PASS: GET ' + self.baseurl + '/' + e['endpoint'] + '/' + str(id)
+				self.printline('PASS: GET ' + self.baseurl + '/' + e['endpoint'] + '/' + str(id))
 				v21_sub_types = e.get('v21_sub_types', None)
 				if v21_sub_types is not None:
 				    for s in v21_sub_types:
 					self.tests_run += 1
 					try:
 					    data = self.read(e['endpoint'], id, s)
-					    print 'PASS: GET ' + self.baseurl + '/' + e['endpoint'] + '/' + str(id) + '/' + s
+					    self.printline('PASS: GET ' + self.baseurl + '/' + e['endpoint'] + '/' + str(id) + '/' + s)
 					    self.tests_passed += 1
 					except:
-					    print 'FAIL: GET ' + self.baseurl + '/' + e['endpoint'] + '/' + str(id) + '/' + s
+					    self.printline('FAIL: GET ' + self.baseurl + '/' + e['endpoint'] + '/' + str(id) + '/' + s)
+				v22_sub_types = e.get('v22_sub_types',None)
+				if v22_sub_types is not None:
+				    self.version = '2.2'
+				    for s in v22_sub_types:
+					self.tests_run += 1
+					try:
+					    data = self.read(e['endpoint'], id, s)
+					    self.printline('PASS: GET ' + self.baseurl + '/' + e['endpoint'] + '/' + str(id) + '/' + s)
+					    self.tests_passed += 1
+					except:
+					    self.printline('FAIL: GET ' + self.baseurl + '/' + e['endpoint'] + '/' + str(id) + '/' + s)
 			    except:
-				print 'FAIL: GET ' + self.baseurl + '/' + e['endpoint'] + '/' + str(id)
+				self.printline('FAIL: GET ' + self.baseurl + '/' + e['endpoint'] + '/' + str(id))
 		    except:
-			print 'FAIL: GET ' + self.baseurl + '/' + e['endpoint']
+			self.printline('FAIL: GET ' + self.baseurl + '/' + e['endpoint'])
 			
 	if section is None or section == 'post':
 	    
-	    print "Test v2.1 POST endpoints"
+	    self.printline("Test POST/PUT endpoints")
 	    
 	    for e in self.object_types:
 		data = e.get('example',None)
@@ -500,20 +547,28 @@ class Insightly():
 			try:
 			    data = self.create(endpoint, data)
 			    self.tests_passed += 1
-			    print 'PASS: POST ' + self.baseurl + '/' + url
+			    self.printline('PASS: POST ' + self.baseurl + '/' + url)
 			    if data is not None:
+				self.tests_run += 1
+				try:
+				    data = self.update(e['endpoint'], data)
+				    self.tests_passed += 1
+				    self.printline('PASS: PUT ' + self.baseurl + '/' + e['endpoint'])
+				except:
+				    self.printline('FAIL: PUT ' + self.baseurl + '/' + e['endpoint'])
 				id = data.get(e['object_id'], None)
 				if id is not None:
 				    self.tests_run += 1
 				    try:
 					self.delete(endpoint, id)
-					print 'PASS: DELETE ' + self.baseurl + '/' + url + '/' + endpoint + '/' + str(id)
+					self.printline('PASS: DELETE ' + self.baseurl + '/' + url + '/' + endpoint + '/' + str(id))
 					self.tests_passed += 1
 				    except:
-				        print 'FAIL: DELETE ' + self.baseurl + url + '/' + endpoint + '/' + str(id)
+				        self.printline('FAIL: DELETE ' + self.baseurl + url + '/' + endpoint + '/' + str(id))
 			except:
-			    print 'FAIL: POST ' + self.baseurl + '/' + url
-	print str(self.tests_passed) + ' of ' + str(self.tests_run) + ' tests passed'
+			    self.printline('FAIL: POST ' + self.baseurl + '/' + url)
+	self.printline(str(self.tests_passed) + ' of ' + str(self.tests_run) + ' tests passed')
+	self.filehandle.close()
 	
     def update(self, object_type, object_graph, id = None, sub_type = None):
 	"""
