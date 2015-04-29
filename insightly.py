@@ -14,6 +14,7 @@ import json
 import string
 import urllib
 import urllib2
+import zlib
 
 class Insightly():
     """
@@ -90,10 +91,13 @@ class Insightly():
     Read operations via the API are generally quite straightforward, so if you get struck on a write operation, this is a good workaround,
     as you are probably just missing a required field or using an invalid element ID when referring to something such as a link to a contact.
     """
-    def __init__(self, apikey='', version='2.1', dev =None):
+    def __init__(self, apikey='', version='2.1', dev=None, gzip=True):
 	"""
 	Instantiates the class, logs in, and fetches the current list of users. Also identifies the account owner's user ID, which
 	is a required field for some actions. This is stored in the property Insightly.owner_id
+	
+	gzip compression is enabled by default, the client library will try to decompress return results, with fallback to plaintext
+	if the server is ignoring compression requests (this reduces payload size by about 10:1 when active)
 
 	Raises an exception if login or call to getUsers() fails, most likely due to an invalid or missing API key
 	"""
@@ -114,8 +118,10 @@ class Insightly():
 			    {'object_type':'email','endpoint':'emails','object_id':'EMAIL_ID',
 				    'v21_sub_types':['comments']},
 			    {'object_type':'event','endpoint':'events','object_id':'EVENT_ID',
+				    'bad_example':{'TITLE':'Bad Example','PUBLICLY_VISIBLE':True},
 				    'example':{'TITLE':'Example Event','START_DATE_UTC':'2015-08-15 14:30:00','END_DATE_UTC':'2015-08-15 15:30:00','PUBLICLY_VISIBLE':True}},
 			    {'object_type':'filecategory','endpoint':'filecategories','object_id':'CATEGORY_ID',
+				    'bad_example':{'Active':True,'BACKGROUND_COLOR':'000000'},
 				    'example':{'CATEGORY_NAME':'Foozle','ACTIVE':True,'BACKGROUND_COLOR':'000000'}},
 			    {'object_type':'lead','endpoint':'leads','object_id':'LEAD_ID',
 				    'example':{'FIRST_NAME':'Foozle','LAST_NAME':'McBarzle'},
@@ -151,25 +157,10 @@ class Insightly():
 			    {'object_type':'teammember','endpoint':'teammembers','object_id':'PERMISSION_ID'},
 			    {'object_type':'teams','endpoint':'teams','object_id':'TEAM_ID'},
 			    {'object_type':'users','endpoint':'users','object_id':'USER_ID'}]
-	
-	#
-	# Define v2.1 child objects and sample data
-	#
-	
-	self.v21_sub_types = [
-	    {'sub_type':'emails','example':{}},
-	    {'sub_type':'tasks','example':{}}
-	]
-	
-	#
-	# Define v2.2 child objects and sample data
-	#
-	
-	self.v22_sub_types = [
-	    {'sub_type':'addresses','example':{}},
-	    {'sub_type':'contactinfos', 'example':{}},
-	    {'sub_type':'links', 'example':{}}
-	]
+	if gzip:
+	    self.gzip = True
+	else:
+	    self.gzip = False
 	
 	self.version = str(version)
         if dev:
@@ -216,7 +207,7 @@ class Insightly():
         else:
             raise Exception('Python library only supports v2.1 or v2.2 APIs')
 	
-    def create(self, object_type, object_graph, id = None, sub_type = None):
+    def create(self, object_type, object_graph, id = None, sub_type = None, test=False):
 	"""
 	This is a general purpose write method that can be used to create (POST)
 	Insightly objects. 
@@ -229,13 +220,21 @@ class Insightly():
 		url += '/' + str(id)
 		if sub_type is not None:
 		    url += '/' + sub_type
+	    if test:
+		self.tests_run += 1
+		try:
+		    self.generateRequest(url, 'POST', data, alt_auth = 'borkborkborkborkbork')
+		    self.printline('FAIL: POST w/ bad auth ' + url)
+		except:
+		    self.tests_passed += 1
+		    self.printline('PASS: POST w/ bad auth ' + url)
 	    text = self.generateRequest(url, 'POST', data)
 	    data = json.loads(text)
 	    return data
 	else:
 	    raise Exception('object_graph must be a Python dictionary')
 	
-    def delete(self, object_type, id, sub_type=None, subtype_id = None):
+    def delete(self, object_type, id, sub_type=None, subtype_id = None, test=False):
 	"""
 	This is a general purpose delete method that will allow the user to delete Insightly
 	objects (e.g. contacts) and sub_objects (e.g. delete a contact_info linked to an object)
@@ -248,7 +247,14 @@ class Insightly():
 		url += '/' + sub_type
 		if sub_type_id is not None:
 		    url += '/' + str(sub_type_id)
-	object_type = string.lower(object_type)
+	if test:
+	    self.tests_run += 1
+	    try:
+		self.generateRequest(url, 'DELETE', '', alt_auth = 'borkborkborkborkbork')
+		self.printline('FAIL: DELETE w/ bad auth ' + url)
+	    except:
+		self.tests_passed += 1
+		self.printline('PASS: DELETE w/ bad auth ' + url)
 	text = self.generateRequest(url, 'DELETE', '')
 	return True
 	
@@ -320,15 +326,6 @@ class Insightly():
         such as authentication issues and malformed requests. Uses the urllib2 standard
         library, so it is not dependent on third party libraries like Requests
         """
-        if self.testmode:
-            self.tests_run += 1
-            # run a series of sanity checks to verify authentication, etc
-            try:
-                self.generateTestRequest(url, method, data, alt_auth = 'borkborkborkborkbork')
-                print 'FAIL: bad auth credentials not detected for ' + url
-            except:
-                self.tests_passed += 1
-                print 'PASS: bad auth credentials detected for ' + url
         if type(url) is not str: raise Exception('url must be a string')
         if type(method) is not str: raise Exception('method must be a string')
         valid_method = False
@@ -347,6 +344,8 @@ class Insightly():
 	    full_url = self.baseurl + url
         # self.printline('URL:  ' + full_url)
         request = urllib2.Request(full_url)
+	if self.gzip:
+	    request.add_header("Accept-Encoding", "gzip")
         if alt_auth is not None:
             request.add_header("Authorization", self.alt_header)
         else:
@@ -360,40 +359,14 @@ class Insightly():
         else:
             result = urllib2.urlopen(request)
         text = result.read()
-        return text
-    
-    def generateTestRequest(self, url, method, data, alt_auth=None, content_type = None):
-        if type(url) is not str: raise Exception('url must be a string')
-        if type(method) is not str: raise Exception('method must be a string')
-        valid_method = False
-        response = None
-        text = ''
-        if method == 'GET' or method == 'PUT' or method == 'DELETE' or method == 'POST':
-            valid_method = True
-        else:
-            raise Exception('parameter method must be GET|DELETE|PUT|UPDATE')
-        # generate full URL from base url and relative url
-        full_url = self.baseurl + url
-        if self.version == '2.2':
-            print 'URL: ' + full_url
-        request = urllib2.Request(full_url)
-        if alt_auth is not None:
-            request.add_header("Authorization", self.alt_header)
-        else:
-            base64string = base64.encodestring('%s:%s' % (self.apikey, '')).replace('\n', '')
-            request.add_header("Authorization", "Basic %s" % base64string)
-        request.get_method = lambda: method
-        if content_type is not None:
-            request.add_header('Content-Type', content_type)
-        else:
-            request.add_header('Content-Type', 'application/json')
-        # open the URL, if an error code is returned it should raise an exception
-        if method == 'PUT' or method == 'POST':
-            result = urllib2.urlopen(request, data)
-        else:
-            result = urllib2.urlopen(request)
-        text = result.read()
-        return text
+	if self.gzip:
+	    try:
+		# try to decode as gzipped text
+		text = zlib.decompress(text, zlib.MAX_WBITS|16)
+	    except:
+		# fall back to plain text (sometimes the server ignores the gzip encoding request, e.g. staging environment)
+		pass
+	return text
     
     def getMethods(self, test=False):
         """
@@ -441,10 +414,12 @@ class Insightly():
             return ''
 	
     def printline(self, text):
+	if self.filehandle is None:
+	    self.filehandle = open('testresults.txt', 'w')
 	print text
 	self.filehandle.write(text + '\n')
 	
-    def read(self, object_type, id = None, sub_type=None, top=None, skip=None, orderby=None, filters=None):
+    def read(self, object_type, id = None, sub_type=None, top=None, skip=None, orderby=None, filters=None, test=False):
 	"""
 	This is a general purpose read method that will allow the user to easily fetch Insightly objects.
 	This will replace the hand built request handlers, which are too numerous to test and support
@@ -463,8 +438,15 @@ class Insightly():
 	    url += '/' + str(id)
 	    if sub_type is not None:
 		url += '/' + sub_type
-	object_type = string.lower(object_type)
 	url += self.ODataQuery('',top=top, skip=skip, orderby=orderby, filters=filters)
+	if test:
+	    self.tests_run += 1
+	    try:
+		self.generateRequest(url, 'GET', '', alt_auth = 'borkborkborkborkbork')
+		self.printline('FAIL: GET w/ bad auth ' + url)
+	    except:
+		self.tests_passed += 1
+		self.printline('PASS: GET w/ bad auth ' + url)
 	text = self.generateRequest(url, 'GET', '')
 	return self.dictToList(json.loads(text))
     
@@ -486,7 +468,7 @@ class Insightly():
 	
 	if section is None or section == 'get':
 	
-	    self.printline("Test GET/PUT Endpoints")
+	    self.printline("Test GET Endpoints")
 	    
 	    skip_endpoints = ['comments','fileattachments','tags']
 	    
@@ -495,7 +477,7 @@ class Insightly():
 		if e['object_type'] not in skip_endpoints:
 		    self.tests_run += 1
 		    try:
-			data = self.read(e['endpoint'])
+			data = self.read(e['endpoint'], test=True)
 			self.tests_passed += 1
 			self.printline('PASS: GET ' + self.baseurl + '/' + e['endpoint'])
 			if len(data) > 0:
@@ -504,7 +486,7 @@ class Insightly():
 			    self.tests_run += 1
 			    id = data[e['object_id']]
 			    try:
-				data = self.read(e['endpoint'], id)
+				data = self.read(e['endpoint'], id, test=True)
 				self.tests_passed += 1
 				self.printline('PASS: GET ' + self.baseurl + '/' + e['endpoint'] + '/' + str(id))
 				v21_sub_types = e.get('v21_sub_types', None)
@@ -512,7 +494,7 @@ class Insightly():
 				    for s in v21_sub_types:
 					self.tests_run += 1
 					try:
-					    data = self.read(e['endpoint'], id, s)
+					    data = self.read(e['endpoint'], id, s, test=True)
 					    self.printline('PASS: GET ' + self.baseurl + '/' + e['endpoint'] + '/' + str(id) + '/' + s)
 					    self.tests_passed += 1
 					except:
@@ -523,7 +505,7 @@ class Insightly():
 				    for s in v22_sub_types:
 					self.tests_run += 1
 					try:
-					    data = self.read(e['endpoint'], id, s)
+					    data = self.read(e['endpoint'], id, s, test=True)
 					    self.printline('PASS: GET ' + self.baseurl + '/' + e['endpoint'] + '/' + str(id) + '/' + s)
 					    self.tests_passed += 1
 					except:
@@ -545,13 +527,13 @@ class Insightly():
 			self.tests_run += 1
 			url = endpoint
 			try:
-			    data = self.create(endpoint, data)
+			    data = self.create(endpoint, data, test=True)
 			    self.tests_passed += 1
 			    self.printline('PASS: POST ' + self.baseurl + '/' + url)
 			    if data is not None:
 				self.tests_run += 1
 				try:
-				    data = self.update(e['endpoint'], data)
+				    data = self.update(e['endpoint'], data, test=True)
 				    self.tests_passed += 1
 				    self.printline('PASS: PUT ' + self.baseurl + '/' + e['endpoint'])
 				except:
@@ -560,7 +542,7 @@ class Insightly():
 				if id is not None:
 				    self.tests_run += 1
 				    try:
-					self.delete(endpoint, id)
+					self.delete(endpoint, id, test=True)
 					self.printline('PASS: DELETE ' + self.baseurl + '/' + url + '/' + endpoint + '/' + str(id))
 					self.tests_passed += 1
 				    except:
@@ -569,8 +551,9 @@ class Insightly():
 			    self.printline('FAIL: POST ' + self.baseurl + '/' + url)
 	self.printline(str(self.tests_passed) + ' of ' + str(self.tests_run) + ' tests passed')
 	self.filehandle.close()
+	self.filehandle = None
 	
-    def update(self, object_type, object_graph, id = None, sub_type = None):
+    def update(self, object_type, object_graph, id = None, sub_type = None, test=False):
 	"""
 	This is a general purpose write method that can be used to update (PUT)
 	Insightly objects. 
@@ -583,6 +566,14 @@ class Insightly():
 		url += '/' + str(id)
 		if sub_type is not None:
 		    url += '/' + sub_type
+	    if test:
+		self.tests_run += 1
+		try:
+		    self.generateRequest(url, 'PUT', data, alt_auth = 'borkborkborkborkbork')
+		    self.printline('FAIL: PUT w/ bad auth ' + url)
+		except:
+		    self.tests_passed += 1
+		    self.printline('PASS: PUT w/ bad auth ' + url)
 	    text = self.generateRequest(url, 'PUT', data)
 	    data = json.loads(text)
 	    return data
