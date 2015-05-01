@@ -205,7 +205,7 @@ class Insightly():
                 self.owner_id = 0
                 self.owner_name = ''
         else:
-            raise Exception('Python library only supports v2.1 or v2.2 APIs')
+            raise Exception('Python library only supports v2/2.0, v2.1 or v2.2 APIs')
 	
     def create(self, object_type, object_graph, id = None, sub_type = None, test=False):
 	"""
