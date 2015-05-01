@@ -168,7 +168,7 @@ class Insightly():
         else:
             self.domain = 'https://api.insight.ly/v'
 	self.filehandle = open('testresults.txt','w')
-	self.baseurl = self.domain + version
+	self.baseurl = self.domain + self.version
 	self.baseurlv21 = self.domain + '2.1'
 	self.baseurlv22 = self.domain + '2.2'
 	self.test_data = dict()
@@ -182,7 +182,7 @@ class Insightly():
                 pass
         version = str(version)
         self.version = version
-        if version == '2.2' or version == '2.1':
+        if version == '2.2' or version == '2.1' or version == '2.0' or version == '2':
             self.alt_header = 'Basic '
             self.apikey = apikey
             self.tests_run = 0
