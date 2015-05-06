@@ -108,7 +108,7 @@ class Insightly():
 	# TODO: add bad examples, to test invalid submissions are being caught correctly
 	#
 	self.object_types = [{'object_type':'contact','endpoint':'contacts','object_id':'CONTACT_ID',
-				    'bad_example':{},
+				    'bad_example':{'BOGUS_FIELD':'zippo','BOGUS_DATA':'nada'},
 				    'example':{'FIRST_NAME':'Testy','LAST_NAME':'McTesterson','SALUTATION':'Mr'},
 				    'v21_sub_types':['emails','notes','tasks'],
 				    'v22_sub_types':['addresses','contactinfos','tags','fileattachments','follow','dates','links','contactlinks']},
@@ -172,6 +172,7 @@ class Insightly():
 	self.baseurlv21 = self.domain + '2.1'
 	self.baseurlv22 = self.domain + '2.2'
 	self.test_data = dict()
+	self.test_failures = list()
         self.testmode = False
         if len(apikey) < 1:
             try:
@@ -414,6 +415,8 @@ class Insightly():
             return ''
 	
     def printline(self, text):
+	if string.count(string.lower(text), 'fail') > 0:
+	    self.test_failures.append(text)
 	if self.filehandle is None:
 	    self.filehandle = open('testresults.txt', 'w')
 	print text
@@ -521,6 +524,7 @@ class Insightly():
 	    
 	    for e in self.object_types:
 		data = e.get('example',None)
+		bad_data = e.get('bad_example',None)
 		if data is not None:
 		    endpoint = e.get('endpoint',None)
 		    if endpoint is not None:
@@ -546,9 +550,19 @@ class Insightly():
 					self.printline('PASS: DELETE ' + self.baseurl + '/' + url + '/' + endpoint + '/' + str(id))
 					self.tests_passed += 1
 				    except:
-				        self.printline('FAIL: DELETE ' + self.baseurl + url + '/' + endpoint + '/' + str(id))
+				        self.printline('FAIL: DELETE ' + self.baseurl + '/' + url + '/' + endpoint + '/' + str(id))
 			except:
 			    self.printline('FAIL: POST ' + self.baseurl + '/' + url)
+		if bad_data is not None:
+		    endpoint = e.get('endpoint', None)
+		    if endpoint is not None:
+			self.tests_run += 1
+			try:
+			    bad_data = self.create(endpoint, bad_data, test=True)
+			    self.printline('FAIL: POST ' + endpoint + ' with invalid data')
+			except:
+			    self.tests_passed += 1
+			    self.printline('PASS: POST ' + endpoint + ' with invalid data')
 	self.printline(str(self.tests_passed) + ' of ' + str(self.tests_run) + ' tests passed')
 	self.filehandle.close()
 	self.filehandle = None
