@@ -6,8 +6,6 @@ The Insightly Python SDK makes it super easy to integrate Insightly into your Py
   from insightly import Insightly
   
   i = Insightly()
-  
-  contacts = i.getContacts(orderby='DATE_UPDATED_UTC desc')
-
+  contacts = i.read('contacts', orderby='DATE_UPDATED_UTC desc')
 
 The library takes care of authentication and low level communication, so you can focus on building your custom application or service. 
