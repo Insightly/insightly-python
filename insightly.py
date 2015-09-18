@@ -91,7 +91,7 @@ class Insightly():
     Read operations via the API are generally quite straightforward, so if you get struck on a write operation, this is a good workaround,
     as you are probably just missing a required field or using an invalid element ID when referring to something such as a link to a contact.
     """
-    def __init__(self, apikey='', version='2.1', dev=None, gzip=True):
+    def __init__(self, apikey='', version='2.1', dev=None, gzip=True, debug=True):
 	"""
 	Instantiates the class, logs in, and fetches the current list of users. Also identifies the account owner's user ID, which
 	is a required field for some actions. This is stored in the property Insightly.owner_id
@@ -179,7 +179,7 @@ class Insightly():
             try:
                 f = open('apikey.txt', 'r')
                 apikey = f.read()
-                print 'API Key read from disk as ' + apikey
+                if self.debug:	print 'API Key read from disk as ' + apikey
             except:
                 pass
         version = str(version)
@@ -192,17 +192,17 @@ class Insightly():
             if version == '2.1':
                 self.users = self.read('users')
                 self.version = version
-                print 'CONNECTED: found ' + str(len(self.users)) + ' users'
+                if self.debug:	print 'CONNECTED: found ' + str(len(self.users)) + ' users'
                 for u in self.users:
                     if u.get('ACCOUNT_OWNER', False):
                         self.owner_email = u.get('EMAIL_ADDRESS','')
                         self.owner_id = u.get('USER_ID', None)
                         self.owner_name = u.get('FIRST_NAME','') + ' ' + u.get('LAST_NAME','')
-                        print 'The account owner is ' + self.owner_name + ' [' + str(self.owner_id) + '] at ' + self.owner_email
+                        if self.debug:	print 'The account owner is ' + self.owner_name + ' [' + str(self.owner_id) + '] at ' + self.owner_email
                         break
             else:
                 self.version = version
-                print 'ASSUME connection proceeded, not all endpoints are implemented yet'
+                if self.debug:	print 'ASSUME connection proceeded, not all endpoints are implemented yet'
                 self.owner_email = ''
                 self.owner_id = 0
                 self.owner_name = ''
@@ -381,46 +381,74 @@ class Insightly():
         """
         This helper function generates an OData compatible query string. It is used by many
         of the search functions to enable users to filter, page and order recordsets.
+	
+	NOTE: version 2.2 does not support OData, but does support optional querystring
+	parameters. This function will generate the correct query string depending on the
+	API version to preserve backward compatibility. Version 2.2 also limits you to
+	filtering on a single optional parameters (e.g. phone_number=4155551212) to insure good
+	query performance. The orderby option is no longer supported in version 2.2.
+	You can do a wildcard search by prepending or appending a % sign to a filter,
+	for example, phone = %4155551212 will match for 14155551212 and +14155551212.
+	
+	See the version 2.2 API documentation for a list of optional parameters that are
+	currently supported by each API endpoint.
         """
         #
         # TODO: double check that this has been implemented correctly
         #
-        if type(querystring) is str:
-            if top is not None:
-                if querystring == '':
-                    querystring += '?$top=' + str(top)
-                else:
-                    querystring += '&$top=' + str(top)
-            if skip is not None:
-                if querystring == '':
-                    querystring += '?$skip=' + str(skip)
-                else:
-                    querystring += '&$skip=' + str(skip)
-            if orderby is not None:
-                if querystring == '':
-                    querystring += '?$orderby=' + urllib.quote(orderby)
-                else:
-                    querystring += '&$orderby=' + urllib.quote(orderby)
-            if type(filters) is list:
-                for f in filters:
-                    f = string.replace(f,' ','%20')
-                    f = string.replace(f,'=','%20eq%20')
-                    f = string.replace(f,'>','%20gt%20')
-                    f = string.replace(f,'<','%20lt%20')
-                    if querystring == '':
-                        querystring += '?$filter=' + f
-                    else:
-                        querystring += '&$filter=' + f
-            return querystring
-        else:
-            return ''
+	if str(self.version) == '2.2':
+	    if type(querystring) is str:
+		if top is not None:
+		    querystring += '?top=' + str(top)
+		else:
+		    querystring += '?top=100'
+		if skip is not None:
+		    querystring += '&skip=' + str(skip)
+		if filters is not None:
+		    if type(filters) is dict:
+			filterkeys = filters.keys()
+			for fk in filterkeys:
+			    querystring += '&' + fk + '=' + str(filterkeys[fk])
+		return querystring
+	    else:
+		return ''
+	else:
+	    if type(querystring) is str:
+		if top is not None:
+		    if querystring == '':
+			querystring += '?$top=' + str(top)
+		    else:
+			querystring += '&$top=' + str(top)
+		if skip is not None:
+		    if querystring == '':
+			querystring += '?$skip=' + str(skip)
+		    else:
+			querystring += '&$skip=' + str(skip)
+		if orderby is not None:
+		    if querystring == '':
+			querystring += '?$orderby=' + urllib.quote(orderby)
+		    else:
+			querystring += '&$orderby=' + urllib.quote(orderby)
+		if type(filters) is list:
+		    for f in filters:
+			f = string.replace(f,' ','%20')
+			f = string.replace(f,'=','%20eq%20')
+			f = string.replace(f,'>','%20gt%20')
+			f = string.replace(f,'<','%20lt%20')
+			if querystring == '':
+			    querystring += '?$filter=' + f
+			else:
+			    querystring += '&$filter=' + f
+		return querystring
+	    else:
+		return ''
 	
     def printline(self, text):
 	if string.count(string.lower(text), 'fail') > 0:
 	    self.test_failures.append(text)
 	if self.filehandle is None:
 	    self.filehandle = open('testresults.txt', 'w')
-	print text
+	if self.debug:	print text
 	self.filehandle.write(text + '\n')
 	
     def read(self, object_type, id = None, sub_type=None, top=None, skip=None, orderby=None, filters=None, test=False):
