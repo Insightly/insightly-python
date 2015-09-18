@@ -68,7 +68,7 @@ class Insightly():
     
     The fields() function returns a list of the fields expected for a given object
 
-    The read() function enables you to get/find Insightly objects, with optional OData query terms    
+    The read() function enables you to get/find Insightly objects, with optional pagination and search terms
     
     The update() function enables you to update an existing Insightly object
     
@@ -90,6 +90,7 @@ class Insightly():
     
     Read operations via the API are generally quite straightforward, so if you get struck on a write operation, this is a good workaround,
     as you are probably just missing a required field or using an invalid element ID when referring to something such as a link to a contact.
+    
     """
     def __init__(self, apikey='', version='2.1', dev=None, gzip=True, debug=True):
 	"""
@@ -105,7 +106,7 @@ class Insightly():
 	#
 	# Define available object types, their endpoints, sample data for POST/PUT tests, etc
 	#
-	# TODO: add bad examples, to test invalid submissions are being caught correctly
+	# This is used for automated testing. 
 	#
 	self.object_types = [{'object_type':'contact','endpoint':'contacts','object_id':'CONTACT_ID',
 				    'bad_example':{'BOGUS_FIELD':'zippo','BOGUS_DATA':'nada'},
@@ -161,6 +162,8 @@ class Insightly():
 			    {'object_type':'teammember','endpoint':'teammembers','object_id':'PERMISSION_ID'},
 			    {'object_type':'teams','endpoint':'teams','object_id':'TEAM_ID'},
 			    {'object_type':'users','endpoint':'users','object_id':'USER_ID'}]
+	
+	self.debug = debug
 	if gzip:
 	    self.gzip = True
 	else:
@@ -184,38 +187,40 @@ class Insightly():
                 apikey = f.read()
                 if self.debug:	print 'API Key read from disk as ' + apikey
             except:
-                pass
+                raise Exception('No API provided on instantiation, and apikey.txt file not found in project directory.')
         version = str(version)
         self.version = version
-        if version == '2.2' or version == '2.1' or version == '2.0' or version == '2':
+	self.swagger = None
+        if version == '2.2' or version == '2.1':
             self.alt_header = 'Basic '
             self.apikey = apikey
             self.tests_run = 0
             self.tests_passed = 0
-            if version == '2.1':
-                self.users = self.read('users')
-                self.version = version
-                if self.debug:	print 'CONNECTED: found ' + str(len(self.users)) + ' users'
-                for u in self.users:
-                    if u.get('ACCOUNT_OWNER', False):
-                        self.owner_email = u.get('EMAIL_ADDRESS','')
-                        self.owner_id = u.get('USER_ID', None)
-                        self.owner_name = u.get('FIRST_NAME','') + ' ' + u.get('LAST_NAME','')
-                        if self.debug:	print 'The account owner is ' + self.owner_name + ' [' + str(self.owner_id) + '] at ' + self.owner_email
-                        break
-            else:
-                self.version = version
-                if self.debug:	print 'ASSUME connection proceeded, not all endpoints are implemented yet'
-                self.owner_email = ''
-                self.owner_id = 0
-                self.owner_name = ''
+	    self.users = self.read('users')
+	    self.version = version
+	    if self.debug:	print 'CONNECTED: found ' + str(len(self.users)) + ' users'
+	    for u in self.users:
+		if u.get('ACCOUNT_OWNER', False):
+		    self.owner_email = u.get('EMAIL_ADDRESS','')
+		    self.owner_id = u.get('USER_ID', None)
+		    self.owner_name = u.get('FIRST_NAME','') + ' ' + u.get('LAST_NAME','')
+		    if self.debug:	print 'The account owner is ' + self.owner_name + ' [' + str(self.owner_id) + '] at ' + self.owner_email
+		    break
         else:
-            raise Exception('Python library only supports v2/2.0, v2.1 or v2.2 APIs')
+            raise Exception('Python library only supports v2.1 or v2.2 APIs')
 	
     def create(self, object_type, object_graph, id = None, sub_type = None, test=False):
 	"""
 	This is a general purpose write method that can be used to create (POST)
-	Insightly objects. 
+	Insightly objects.
+	
+	USAGE:
+	
+	i = Insightly()
+	new_lead = {'first_name':'foo','last_name':'bar'}
+	lead = i.create('leads',new_lead)
+	print str(lead)
+	
 	"""
 	object_type = string.lower(object_type)
 	if type(object_graph) is dict:
@@ -243,6 +248,14 @@ class Insightly():
 	"""
 	This is a general purpose delete method that will allow the user to delete Insightly
 	objects (e.g. contacts) and sub_objects (e.g. delete a contact_info linked to an object)
+	
+	USAGE:
+	
+	i = Insightly()
+	lead_id = 123456
+	success = i.delete('leads', lead_id)
+	if success:
+	    print 'Deleted lead number ' + str(lead_id)
 	"""
 	object_type = string.lower(object_type)
 	url = '/' + object_type
@@ -281,6 +294,24 @@ class Insightly():
             return
         else:
             return list()
+	
+    def endpoints(self):
+	"""
+	This function returns a list of currently supported endpoints.
+	
+	NOTE: we also support Swagger, which you can use to automatically discover v2.2 API endpoints.
+	(Swagger is not supported in version 2.1). The JSON file at the URL below contains full
+	documentation for the API endpoints, supported and required parameters:
+	
+	https://api.insight.ly/v2.2/swagger/docs/v2.2
+	"""
+	endpoint_list = list()
+	object_types = self.object_types
+	for o in object_types:
+	    if o['endpoint'] not in endpoint_list:
+		endpoint_list.append(o['endpoint'])
+	endpoint_list.sort()
+	return endpoint_list
 	
     def fields(self, object_type, full_graph=True):
 	"""
@@ -411,7 +442,7 @@ class Insightly():
 		    if type(filters) is dict:
 			filterkeys = filters.keys()
 			for fk in filterkeys:
-			    querystring += '&' + fk + '=' + str(filterkeys[fk])
+			    querystring += '&' + fk + '=' + str(filters[fk])
 		return querystring
 	    else:
 		return ''
@@ -462,10 +493,19 @@ class Insightly():
 	
 	USAGE:
 	
-	i = Insightly(version=2.1, api_key='foozlebarzle')
-	projects = i.read('projects')
+	i = Insightly(version=2.2, apikey='foozlebarzle')
+	projects = i.read('projects', filters{'status':'in progress'})
 	for p in projects:
 	    print str(p)
+	    
+	NOTE:
+	
+	The orderby parameter is no longer supported in version 2.2. If you need to search for records newer than
+	a certain date/time, use the filter updated_after_utc
+	
+	If an optional query parameter is provided in filters (should be a dictionary), this function will query
+	/{object_type}/search
+	
 	"""
 	object_type = string.lower(object_type)
 	url = '/' + object_type
@@ -473,6 +513,10 @@ class Insightly():
 	    url += '/' + str(id)
 	    if sub_type is not None:
 		url += '/' + sub_type
+	elif filters is not None:
+	    url += '/search'
+	else:
+	    pass
 	url += self.ODataQuery('',top=top, skip=skip, orderby=orderby, filters=filters)
 	if test:
 	    self.tests_run += 1
@@ -602,7 +646,19 @@ class Insightly():
     def update(self, object_type, object_graph, id = None, sub_type = None, test=False):
 	"""
 	This is a general purpose write method that can be used to update (PUT)
-	Insightly objects. 
+	Insightly objects.
+	
+	USAGE:
+	
+	i = Insightly()
+	lead_id = 123456
+	lead = i.read('leads', lead_id)
+	if lead is not None:
+	    lead['first_name'] = 'Foozle'
+	    lead['last_name'] = 'Barzle
+	    success = i.update('leads', lead, id = lead_id)
+	    if success:
+		print 'Updated lead number ' + str(lead_id)
 	"""
 	object_type = string.lower(object_type)
 	if type(object_graph) is dict:
