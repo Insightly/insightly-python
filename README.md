@@ -14,22 +14,15 @@ The library takes care of authentication and low level communication, so you can
 MAJOR CHANGES IN VERSION 2.2
 ============================
 
-Version 2.2 of the Insightly API provides a substantial improvement in both performance and functionality. We strongly recommend that
-users migrate to the version of the API at their earliest convenience, although we will continue to provide access to version 2.1.
-Among the improvements and new features in version 2.2:
+Version 2.2 of the Insightly API provides a substantial improvement in both performance and functionality. We strongly recommend that users migrate to this version of the API at their earliest convenience, although we will continue to provide access to version 2.1. Among the improvements and new features in version 2.2:
 
-* Pagination for search results (use the top and skip parameters to page through large recordsets, version 2.1 would return the
-entire recordset, which led to excessively large responses and slow performance)
-* Support for incremental updates to existing objects. For example, to add an address to an existing contact, you just PUT/POST the
-updated address to a contact without touching the parent object graph (this reduces the potential for data loss as it was easy for
-users to forget part of the object graph in the version 2.1 API)
-* Support for predefined filters (in version 2.2 we have replaced OData with a list of predefined, optional query parameters when
-fetching lists of contacts, emails, leads, notes, organisations, opportunities and projects). These queries have also be optimized
-for performance.
-* Swagger documentation and interactive sandbox for testing GET operations. See api.insight.ly/v2.2/Help (you can also auto-generate
-client SDKs using the Swagger toolkit if you are using a language we do not provide an SDK for)
-* Support for activity sets, follows, pipelines, and more, so the web API is in close alignment with the interactions supported via
-the web application.
+* Pagination for search results (use the top and skip parameters to page through large recordsets, version 2.1 would return the entire recordset, which led to excessively large responses and slow performance)
+* Support for incremental updates to existing objects. For example, to add an address to an existing contact, you just PUT/POST the updated address to a contact without touching the parent object graph (this reduces the potential for data loss as it was easy for users to forget part of the object graph in the version 2.1 API)
+* Support for predefined filters (in version 2.2 we have replaced OData with a list of predefined, optional query parameters when fetching lists of contacts, emails, leads, notes, organisations, opportunities and projects). These queries have also be optimized for performance.
+* Swagger documentation and interactive sandbox for testing GET operations. See api.insight.ly/v2.2/Help (you can also auto-generate client SDKs using the Swagger toolkit if you are using a language we do not provide an SDK for)
+* Support for activity sets, follows, pipelines, and more, so the web API is in close alignment with the interactions supported via the web application.
+
+NOTE: version 2.2 should be available for public beta during the week of Sept 21st. In the meantime you can use this library with version 2.1.
 
 ABOUT THIS LIBRARY
 ==================
