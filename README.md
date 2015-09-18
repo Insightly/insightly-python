@@ -62,32 +62,36 @@ endpoints = i.endpoints()
 
 To search for a list of records:
 
-contacts = i.read('contacts',top=100,filters={'city':'perth')
-emails = i.read('emails',top=100,filters={'email_from':'foo@bar.com'})
-projects = i.read('projects',top=100,filters={'status':'in progress'})
+  contacts = i.read('contacts',top=100,filters={'city':'perth')
+
+  emails = i.read('emails',top=100,filters={'email_from':'foo@bar.com'})
+
+  projects = i.read('projects',top=100,filters={'status':'in progress'})
 
 To fetch an individual record:
 
-contact = i.read('contacts',id=123456)
+  contact = i.read('contacts',id=123456)
 
 To fetch a sub-element from an individual record (e.g. get addresses linked to a contact):
 
-addresses = i.read('contacts',id=123456,sub_type='addresses')
+  addresses = i.read('contacts',id=123456,sub_type='addresses')
 
 DELETING AN INSIGHTLY OBJECT
 ============================
 
-success = i.delete('contacts',id=123456)
+  success = i.delete('contacts',id=123456)
 
 CREATING AN INSIGHTLY OBJECT
 ============================
 
-lead = {'first_name':'foo','last_name':'bar'}
-success = i.create('leads', lead)
+  lead = {'first_name':'foo','last_name':'bar'}
+
+  success = i.create('leads', lead)
 
 UPDATING AN INSIGHTLY OBJECT
 ============================
 
-lead['first_name'] = 'Foozle'
-success = i.update(lead)
+  lead['first_name'] = 'Foozle'
+
+  success = i.update(lead)
 
