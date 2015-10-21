@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# -*- coding: UTF-8 -*-
 #
 # NOTE: the version 2.2 API is NOT in production yet, use the v2.1 library in the default branch. We are making this branch available
 # for beta testers, but it is not ready for production use yet.
@@ -11,6 +13,7 @@
 import base64
 import datetime
 import json
+import mimetypes
 import string
 import urllib
 import urllib2
@@ -18,10 +21,10 @@ import zlib
 
 class Insightly():
     """
-    Insightly Python library for Insightly API v2.1/v2.2
+    Insightly Python library for Insightly API v2.2
     Brian McConnell <brian@insight.ly>
    
-    This library provides user friendly access to the versions 2.1 and 2.2 of the REST API for Insightly. The library provides several services, including:
+    This library provides user friendly access to the versions 2.2 of the REST API for Insightly. The library provides several services, including:
    
     * HTTPS request generation
     * Data type validation
@@ -40,41 +43,55 @@ class Insightly():
     enable better test coverage, this library is organized around a small number of general purpose methods that implement create,
     read, update and delete functionality generically. The previous version of the library has one method per endpoint, per HTTP method,
     which grew unwieldy with the addition of many new endpoints in v2.1
+    
+    INSTALLATION
+    
+    Just copy the files in this project into your working directory, if you don't plan to run test suites, you only need the insightly.py
+    file. insightlytest.py and apollo17.jpg are used for testing. The file insightlyexamples.py will be used to highlight short examples
+    of simple integrations. 
    
     USAGE:
-   
-    Simply include insightly.py in your project file, then do the following for to run a test suite:
-   
-    from insightly import Insightly
-    i = Insightly(apikey='your API key', version='2.2')
-    users = i.test()
-    
-    NOTE: you can also store your API key in a text file named apikey.txt that is placed in the working directory along with insightly.py
-   
-    This will run an automatic test suite against your Insightly account. If the methods you need all pass, you're good to go!
-   
     If you are working with very large recordsets, you should use ODATA filters to access data in smaller chunks. This is a good idea in
-    general to minimize server response times.
+    general to minimize server response times. This is no longer an issue with version 2.2, which returns paginated results that you
+    can page through using the optional top and skip parameters.
    
     BASIC USE PATTERNS:
     
     i = Insightly(apikey = 'foozlebarzle', version=2.1)
-    projects = i.read('projects')
+    projects = i.read('projects', top=50, filters={'email':'foo@bar.com'})
     print 'Found ' + str(len(projects)) + ' projects'
     
-    The create() function enables you to create an Insightly object, or append a new sub_object, such as an address, to an object
-
-    The delete() function enables you to delete Insightly objects
+    The create() function enables you to create an Insightly object
     
-    The fields() function returns a list of the fields expected for a given object
+    The create_child() function enables you to add a child object, for example to add an address to a contact or organization
+
+    The delete() function enables you to delete Insightly objects and child objects
 
     The read() function enables you to get/find Insightly objects, with optional pagination and search terms
     
     The update() function enables you to update an existing Insightly object
     
+    The upload() function enables you to upload a file to endpoints that accept file attachments
+    
+    The upload_image() function enables you to upload an image for a contact, organization, project or opportunity
+    
+    AUTOMATED TEST SUITE
+    
+    The library includes a comprehensive automated test suite, which can be found in insightlytest.py
+    
+    To run a test suite, using the following code:
+    
+	from insightlytest import test
+	test()
+    
+    The program will test most API endpoints with sample data and report results to the console, as well as write
+    them out to the file testresults.txt
+    
     INTERACTIVE DOCUMENTATION
     
     Use Python's built in help() function to pull up documentation for individual methods.
+    
+    For API documentation and interactive sandbox, go to https://api.insight.ly/v2.2/Help
     
     TROUBLESHOOTING TIPS
     
@@ -92,7 +109,7 @@ class Insightly():
     as you are probably just missing a required field or using an invalid element ID when referring to something such as a link to a contact.
     
     """
-    def __init__(self, apikey='', version='2.1', dev=None, gzip=True, debug=True):
+    def __init__(self, apikey='', version='2.2', dev=None, gzip=True, debug=True, test=False):
 	"""
 	Instantiates the class, logs in, and fetches the current list of users. Also identifies the account owner's user ID, which
 	is a required field for some actions. This is stored in the property Insightly.owner_id
@@ -103,71 +120,15 @@ class Insightly():
 	Raises an exception if login or call to getUsers() fails, most likely due to an invalid or missing API key
 	"""
 	
-	#
-	# Define available object types, their endpoints, sample data for POST/PUT tests, etc
-	#
-	# This is used for automated testing. 
-	#
-	self.object_types = [{'object_type':'contact','endpoint':'contacts','object_id':'CONTACT_ID',
-				    'bad_example':{'BOGUS_FIELD':'zippo','BOGUS_DATA':'nada'},
-				    'example':{'FIRST_NAME':'Testy','LAST_NAME':'McTesterson','SALUTATION':'Mr'},
-				    'v21_sub_types':['emails','notes','tasks'],
-				    'v22_sub_types':['addresses','contactinfos','tags','fileattachments','follow','dates','links','contactlinks','search']},
-			    {'object_type':'country','endpoint':'countries','object_id':None},
-			    {'object_type':'currency','endpoint':'currencies','object_id':None},
-			    {'object_type':'customfield','endpoint':'customfields','object_id':'CUSTOM_FIELD_ID'},
-			    {'object_type':'email','endpoint':'emails','object_id':'EMAIL_ID',
-				    'v21_sub_types':['comments'],
-				    'v22_sub_types':['search']},
-			    {'object_type':'event','endpoint':'events','object_id':'EVENT_ID',
-				    'bad_example':{'TITLE':'Bad Example','PUBLICLY_VISIBLE':True},
-				    'example':{'TITLE':'Example Event','START_DATE_UTC':'2015-08-15 14:30:00','END_DATE_UTC':'2015-08-15 15:30:00','PUBLICLY_VISIBLE':True},
-				    'v22_sub_types':['search']},
-			    {'object_type':'filecategory','endpoint':'filecategories','object_id':'CATEGORY_ID',
-				    'bad_example':{'Active':True,'BACKGROUND_COLOR':'000000'},
-				    'example':{'CATEGORY_NAME':'Foozle','ACTIVE':True,'BACKGROUND_COLOR':'000000'}},
-			    {'object_type':'lead','endpoint':'leads','object_id':'LEAD_ID',
-				    'example':{'FIRST_NAME':'Foozle','LAST_NAME':'McBarzle'},
-				    'v21_sub_types':['emails','notes','tasks'],
-				    'v22_sub_types':['emails','notes','tasks','search']},
-			    {'object_type':'leadsource','endpoint':'leadsources','object_id':'LEAD_SOURCE_ID',
-				    'example':{'LEAD_SOURCE':'Example Lead Source'}},
-			    {'object_type':'leadstatus','endpoint':'leadstatuses','object_id':'LEAD_STATUS_ID',
-				    'example':{'LEAD_STATUS':'Example Lead Status'}},
-			    {'object_type':'note','endpoint':'notes','object_id':'NOTE_ID'},
-			    {'object_type':'opportunity','endpoint':'opportunities','object_id':'OPPORTUNITY_ID',
-				    'example':{'OPPORTUNITY_NAME':'Test Opportunity','OPPORTUNITY_STATE':'Open'},
-				    'v21_sub_types':['statehistory','emails','notes','tasks']},
-			    {'object_type':'opportunitycategory','endpoint':'opportunitycategories','object_id':'CATEGORY_ID',
-				    'example':{'CATEGORY_NAME':'Foozle','ACTIVE':True,'BACKGROUND_COLOR':'000000'}},
-			    {'object_type':'opportunitystatereason','endpoint':'opportunitystatereasons','object_id':None},
-			    {'object_type':'organisation','endpoint':'organisations','object_id':'ORGANISATION_ID',
-				    'example':{'ORGANISATION_NAME':'Test Organization','BACKGROUND':'This is a test'},
-				    'v21_sub_types':['emails','notes','tasks'],
-				    'v22_sub_types':['follow','fileattachments','events','notes','image','tags','contactinfos','addresses','dates','links','organisationlinks']},
-			    {'object_type':'pipeline','endpoint':'pipelines','object_id':'PIPELINE_ID'},
-			    {'object_type':'pipelinestage','endpoint':'pipelinestages','object_id':'STAGE_ID'},
-			    {'object_type':'projectcategory','endpoint':'projectcategories','object_id':'CATEGORY_ID',
-				    'example':{'CATEGORY_NAME':'Foozle','ACTIVE':True,'BACKGROUND_COLOR':'000000'}},
-			    {'object_type':'project','endpoint':'projects','object_id':'PROJECT_ID',
-				    'example':{'PROJECT_NAME':'Test Project','STATUS':'In Progress'},
-				    'v21_sub_types':['emails','notes','tasks']},
-			    {'object_type':'relationship','endpoint':'relationships','object_id':None},
-			    {'object_type':'tag','endpoint':'tags','object_id':None},
-			    {'object_type':'task','endpoint':'tasks','object_id':'TASK_ID',
-				    'bad_example':{'TITLE':'A Bad Task'},
-				    'v21_sub_types':['comments']},
-			    {'object_type':'taskcategory','endpoint':'taskcategories','object_id':'CATEGORY_ID',
-				    'example':{'CATEGORY_NAME':'Foozle','ACTIVE':True,'BACKGROUND_COLOR':'000000'}},
-			    {'object_type':'teammember','endpoint':'teammembers','object_id':'PERMISSION_ID'},
-			    {'object_type':'teams','endpoint':'teams','object_id':'TEAM_ID'},
-			    {'object_type':'users','endpoint':'users','object_id':'USER_ID'}]
-	
 	self.debug = debug
 	if gzip:
 	    self.gzip = True
 	else:
 	    self.gzip = False
+	if test:
+	    self.test = True
+	else:
+	    self.test = False
 	
 	self.version = str(version)
         if dev:
@@ -180,7 +141,6 @@ class Insightly():
 	self.baseurlv22 = self.domain + '2.2'
 	self.test_data = dict()
 	self.test_failures = list()
-        self.testmode = False
         if len(apikey) < 1:
             try:
                 f = open('apikey.txt', 'r')
@@ -207,9 +167,9 @@ class Insightly():
 		    if self.debug:	print 'The account owner is ' + self.owner_name + ' [' + str(self.owner_id) + '] at ' + self.owner_email
 		    break
         else:
-            raise Exception('Python library only supports v2.1 or v2.2 APIs')
+            raise Exception('Python library only supports v2.1 or v2.2 APIs. We recommend using v2.2.')
 	
-    def create(self, object_type, object_graph, id = None, sub_type = None, test=False):
+    def create(self, object_type, object_graph, id = None, sub_type = None):
 	"""
 	This is a general purpose write method that can be used to create (POST)
 	Insightly objects.
@@ -222,6 +182,7 @@ class Insightly():
 	print str(lead)
 	
 	"""
+	test = self.test
 	object_type = string.lower(object_type)
 	if type(object_graph) is dict:
 	    data = json.dumps(object_graph)
@@ -238,13 +199,58 @@ class Insightly():
 		except:
 		    self.tests_passed += 1
 		    self.printline('PASS: POST w/ bad auth ' + url)
-	    text = self.generateRequest(url, 'POST', data)
-	    data = json.loads(text)
-	    return data
+	    if test:
+		self.tests_run += 1
+		try:
+		    text = self.generateRequest(url, 'POST', data)
+		    data = json.loads(text)
+		    self.tests_passed += 1
+		    self.printline('PASS: POST ' + url)
+		    return data
+		except Exception, e:
+		    self.printline('FAIL: POST ' + url)
+		    self.printline('FAIL: ' + str(e))
+	    else:
+		text = self.generateRequest(url, 'POST', data)
+		data = json.loads(text)
+		return data
 	else:
 	    raise Exception('object_graph must be a Python dictionary')
 	
-    def delete(self, object_type, id, sub_type=None, subtype_id = None, test=False):
+    def create_child(self, object_type, id, sub_type, object_graph):
+	"""
+	This method is used to append a child element, such as a link, to an existing object
+	
+	USAGE:
+	
+	i = Insightly()
+	link = {'LEAD_ID':lead_id,'TASK_ID':task_id}
+	i.create_child('tasks', task_id, 'tasklinks', link)
+	"""
+	test = self.test
+	object_type = string.lower(object_type)
+	if type(object_graph) is dict:
+	    data = json.dumps(object_graph)
+	    url = '/' + object_type + '/' + str(id) + '/' + sub_type
+	    if test:
+		self.tests_run += 1
+		try:
+		    text = self.generateRequest(url, 'POST', data)
+		    self.tests_passed += 1
+		    self.printline('PASS: POST ' + url)
+		    data = json.loads(text)
+		    return data
+		except Exception, e:
+		    self.printline('FAIL: POST ' + url)
+		    self.printline('FAIL: ' + str(e))
+	    else:
+		text = self.generateRequest(url, 'POST', data)
+		data = json.loads(text)
+		return data
+	else:
+	    raise Exception('object graph must be a Python dictionary')
+	
+    def delete(self, object_type, id, sub_type=None, sub_type_id = None):
 	"""
 	This is a general purpose delete method that will allow the user to delete Insightly
 	objects (e.g. contacts) and sub_objects (e.g. delete a contact_info linked to an object)
@@ -257,6 +263,7 @@ class Insightly():
 	if success:
 	    print 'Deleted lead number ' + str(lead_id)
 	"""
+	test = self.test
 	object_type = string.lower(object_type)
 	url = '/' + object_type
 	if id is not None:
@@ -273,8 +280,18 @@ class Insightly():
 	    except:
 		self.tests_passed += 1
 		self.printline('PASS: DELETE w/ bad auth ' + url)
-	text = self.generateRequest(url, 'DELETE', '')
-	return True
+	if test:
+	    self.tests_run += 1
+	    try:
+		text = self.generateRequest(url, 'DELETE', '')
+		self.printline('PASS: DELETE ' + url)
+		self.tests_passed += 1
+	    except Exception, e:
+		self.printline('FAIL: DELETE ' + url)
+		self.printline('FAIL: ' + str(e))
+	else:
+	    text = self.generateRequest(url, 'DELETE', '')
+	    return True
 	
     def dictToList(self, data):
         """
@@ -295,55 +312,6 @@ class Insightly():
         else:
             return list()
 	
-    def endpoints(self):
-	"""
-	This function returns a list of currently supported endpoints.
-	
-	NOTE: we also support Swagger, which you can use to automatically discover v2.2 API endpoints.
-	(Swagger is not supported in version 2.1). The JSON file at the URL below contains full
-	documentation for the API endpoints, supported and required parameters:
-	
-	https://api.insight.ly/v2.2/swagger/docs/v2.2
-	"""
-	endpoint_list = list()
-	object_types = self.object_types
-	for o in object_types:
-	    if o['endpoint'] not in endpoint_list:
-		endpoint_list.append(o['endpoint'])
-	endpoint_list.sort()
-	return endpoint_list
-	
-    def fields(self, object_type, full_graph=True):
-	"""
-	This function returns a list of the fields associated with an Insightly object.
-	See the documentation at https://api.insight.ly/v2.2/Help for full documentation
-	on required fields, formats, etc. If you set full_graph = True it will return
-	the full object graph for a sample object (this is helpful when exploring the API
-	and expected data types).
-	"""
-	object_type = string.lower(object_type)
-	url = None
-	for o in self.object_types:
-	    if o['object_type'] == object_type:
-		url = '/' + o['endpoint']
-	if url is not None:
-	    text = self.generateRequest(url, 'GET', '')
-	    results = json.loads(text)
-	    if full_graph:
-		if len(results) > 0:
-		    return results[0]
-	    else:
-		fieldlist = list()
-		if len(results) > 0:
-		    result = results[0]
-		    keys = result.keys()
-		    return keys
-	else:
-	    object_type_list = ''
-	    for o in self.object_types:
-		object_type_list += o['object_type'] + ' '
-	    raise Exception('Invalid object_type, must be one of ' + object_type_list)
-	
     def findUser(self, email):
 	"""
 	Client side function to quickly look up Insightly users by email. Returns a dictionary containing
@@ -354,7 +322,7 @@ class Insightly():
 	    if u.get('EMAIL_ADDRESS','') == email:
 		return u
 
-    def generateRequest(self, url, method, data, alt_auth=None, test=False):
+    def generateRequest(self, url, method, data, alt_auth=None, test=False, headers=None):
         """
         This method is used by other helper functions to generate HTTPS requests and parse
         server responses. This will minimize the amount of work developers need to do to
@@ -389,6 +357,10 @@ class Insightly():
             request.add_header("Authorization", "Basic %s" % base64string)   
         request.get_method = lambda: method
         request.add_header('Content-Type', 'application/json')
+	if headers is not None:
+	    headerkeys = headers.keys()
+	    for h in headerkeys:
+		request.add_header(h, headers[h])
         # open the URL, if an error code is returned it should raise an exception
         if method == 'PUT' or method == 'POST':
             result = urllib2.urlopen(request, data)
@@ -441,8 +413,11 @@ class Insightly():
 		if filters is not None:
 		    if type(filters) is dict:
 			filterkeys = filters.keys()
-			for fk in filterkeys:
-			    querystring += '&' + fk + '=' + str(filters[fk])
+			if len(filterkeys) > 1:
+			    raise Exception('Only one filter parameter is allowed per query at this time')
+			else:
+			    for fk in filterkeys:
+				querystring += '&' + fk + '=' + str(filters[fk])
 		return querystring
 	    else:
 		return ''
@@ -485,7 +460,7 @@ class Insightly():
 	if self.debug:	print text
 	self.filehandle.write(text + '\n')
 	
-    def read(self, object_type, id = None, sub_type=None, top=None, skip=None, orderby=None, filters=None, test=False):
+    def read(self, object_type, id = None, sub_type=None, top=None, skip=None, orderby=None, filters=None):
 	"""
 	This is a general purpose read method that will allow the user to easily fetch Insightly objects.
 	This will replace the hand built request handlers, which are too numerous to test and support
@@ -507,6 +482,11 @@ class Insightly():
 	/{object_type}/search
 	
 	"""
+	test = self.test
+	if top is not None or skip is not None or orderby is not None or filters is not None:
+	    search=True
+	else:
+	    search=False
 	object_type = string.lower(object_type)
 	url = '/' + object_type
 	if id is not None:
@@ -517,7 +497,8 @@ class Insightly():
 	    url += '/search'
 	else:
 	    pass
-	url += self.ODataQuery('',top=top, skip=skip, orderby=orderby, filters=filters)
+	if search:
+	    url += self.ODataQuery('',top=top, skip=skip, orderby=orderby, filters=filters)
 	if test:
 	    self.tests_run += 1
 	    try:
@@ -526,124 +507,21 @@ class Insightly():
 	    except:
 		self.tests_passed += 1
 		self.printline('PASS: GET w/ bad auth ' + url)
-	text = self.generateRequest(url, 'GET', '')
-	return self.dictToList(json.loads(text))
-    
-    def test(self, section=None):
-        """
-        This helper function runs a test suite against the API to verify the API and client side methods are working normally.
-        This may not reveal all corner cases, but will do a basic sanity check against the system.
-        
-        USAGE:
-        
-        i = Insightly()
-        i.test()        # run test suite, with no limit on number of records returned by search functions   
-        """
+	if test:
+	    self.tests_run += 1
+	    try:
+		text = self.generateRequest(url,'GET','')
+		self.tests_passed += 1
+		self.printline('PASS: GET ' + url)
+		return self.dictToList(json.loads(text))
+	    except Exception, e:
+		self.printline('FAIL: GET ' + url)
+		self.printline('FAIL: ' + str(e))
+	else:
+	    text = self.generateRequest(url, 'GET', '')
+	    return self.dictToList(json.loads(text))
 	
-	endpoints = self.object_types
-	self.tests_run = 0
-	
-	# do basic get all query for each object type
-	
-	if section is None or section == 'get':
-	
-	    self.printline("Test GET Endpoints")
-	    
-	    skip_endpoints = ['comments','fileattachments','tags']
-	    
-	    for e in endpoints:
-		self.version='2.1'
-		if e['object_type'] not in skip_endpoints:
-		    self.tests_run += 1
-		    try:
-			data = self.read(e['endpoint'], test=True)
-			self.tests_passed += 1
-			self.printline('PASS: GET ' + self.baseurl + '/' + e['endpoint'])
-			if len(data) > 0:
-			    data = data[0]
-			if e['object_id'] is not None:
-			    self.tests_run += 1
-			    id = data[e['object_id']]
-			    try:
-				data = self.read(e['endpoint'], id, test=True)
-				self.tests_passed += 1
-				self.printline('PASS: GET ' + self.baseurl + '/' + e['endpoint'] + '/' + str(id))
-				v21_sub_types = e.get('v21_sub_types', None)
-				if v21_sub_types is not None:
-				    for s in v21_sub_types:
-					self.tests_run += 1
-					try:
-					    data = self.read(e['endpoint'], id, s, test=True)
-					    self.printline('PASS: GET ' + self.baseurl + '/' + e['endpoint'] + '/' + str(id) + '/' + s)
-					    self.tests_passed += 1
-					except:
-					    self.printline('FAIL: GET ' + self.baseurl + '/' + e['endpoint'] + '/' + str(id) + '/' + s)
-				v22_sub_types = e.get('v22_sub_types',None)
-				if v22_sub_types is not None:
-				    self.version = '2.2'
-				    for s in v22_sub_types:
-					self.tests_run += 1
-					try:
-					    data = self.read(e['endpoint'], id, s, test=True)
-					    self.printline('PASS: GET ' + self.baseurl + '/' + e['endpoint'] + '/' + str(id) + '/' + s)
-					    self.tests_passed += 1
-					except:
-					    self.printline('FAIL: GET ' + self.baseurl + '/' + e['endpoint'] + '/' + str(id) + '/' + s)
-			    except:
-				self.printline('FAIL: GET ' + self.baseurl + '/' + e['endpoint'] + '/' + str(id))
-		    except:
-			self.printline('FAIL: GET ' + self.baseurl + '/' + e['endpoint'])
-			
-	if section is None or section == 'post':
-	    
-	    self.printline("Test POST/PUT endpoints")
-	    
-	    for e in self.object_types:
-		data = e.get('example',None)
-		bad_data = e.get('bad_example',None)
-		if data is not None:
-		    endpoint = e.get('endpoint',None)
-		    if endpoint is not None:
-			self.tests_run += 1
-			url = endpoint
-			try:
-			    data = self.create(endpoint, data, test=True)
-			    self.tests_passed += 1
-			    self.printline('PASS: POST ' + self.baseurl + '/' + url)
-			    if data is not None:
-				self.tests_run += 1
-				try:
-				    data = self.update(e['endpoint'], data, test=True)
-				    self.tests_passed += 1
-				    self.printline('PASS: PUT ' + self.baseurl + '/' + e['endpoint'])
-				except:
-				    self.printline('FAIL: PUT ' + self.baseurl + '/' + e['endpoint'])
-				id = data.get(e['object_id'], None)
-				if id is not None:
-				    self.tests_run += 1
-				    try:
-					self.delete(endpoint, id, test=True)
-					self.printline('PASS: DELETE ' + self.baseurl + '/' + url + '/' + endpoint + '/' + str(id))
-					self.tests_passed += 1
-				    except:
-				        self.printline('FAIL: DELETE ' + self.baseurl + '/' + url + '/' + endpoint + '/' + str(id))
-			except:
-			    self.printline('FAIL: POST ' + self.baseurl + '/' + url)
-		if bad_data is not None:
-		    endpoint = e.get('endpoint', None)
-		    if endpoint is not None:
-			self.tests_run += 1
-			try:
-			    bad_data = self.create(endpoint, bad_data, test=True)
-			    self.printline('FAIL: POST ' + endpoint + ' with invalid data')
-			except:
-			    self.tests_passed += 1
-			    self.printline('PASS: POST ' + endpoint + ' with invalid data')
-	self.printline(str(self.tests_passed) + ' of ' + str(self.tests_run) + ' tests passed')
-	self.filehandle.close()
-	self.filehandle = None
-	
-    def update(self, object_type, object_graph, id = None, sub_type = None, test=False):
+    def update(self, object_type, object_graph, id = None, sub_type = None):
 	"""
 	This is a general purpose write method that can be used to update (PUT)
 	Insightly objects.
@@ -661,6 +539,7 @@ class Insightly():
 		print 'Updated lead number ' + str(lead_id)
 	"""
 	object_type = string.lower(object_type)
+	test = self.test
 	if type(object_graph) is dict:
 	    data = json.dumps(object_graph)
 	    url = '/' + object_type
@@ -676,9 +555,85 @@ class Insightly():
 		except:
 		    self.tests_passed += 1
 		    self.printline('PASS: PUT w/ bad auth ' + url)
-	    text = self.generateRequest(url, 'PUT', data)
-	    data = json.loads(text)
-	    return data
+	    if test:
+		self.tests_run += 1
+		try:
+		    text = self.generateRequest(url, 'PUT', data)
+		    data = json.loads(text)
+		    self.printline('PASS: PUT ' + url)
+		    self.tests_passed += 1
+		    return data
+		except Exception, e:
+		    self.printline('FAIL: PUT ' + url)
+		    self.printline('FAIL: ' + str(e))
+	    else:
+		text = self.generateRequest(url, 'PUT', data)
+		data = json.loads(text)
+		return data
 	else:
 	    raise Exception('object_graph must be a Python dictionary')
 	
+    def upload(self, object_type, id, filename):
+	test = self.test
+	f = open(filename, 'rb')
+	value = f.read()
+	content_type, body = self.encode_multipart_formdata([(filename + 'xyxyxyxyxyxyxyxyxyx314159', filename, value)])
+	headers=dict()
+	headers['Content-Type'] = content_type
+	headers['Content-Length'] = str(len(body))
+	url = '/' + object_type + '/'+ str(id) + '/fileattachments'
+	if test:
+	    self.tests_run += 1
+	    try:
+		text = self.generateRequest(url, 'POST', body, headers=headers)
+		self.printline('PASS: UPLOAD ' + url)
+		self.tests_passed += 1
+		return json.loads(text)
+	    except Exception, e:
+		self.printline('FAIL: UPLOAD ' + url)
+		self.printline('FAIL: ' + str(e))
+	else:
+	    text = self.generateRequest(url, 'POST', body, headers=headers)
+	    return json.loads(text)
+    
+    def upload_image(self, object_type, id, filename):
+	test = self.test
+	f = open(filename, 'rb')
+	value = f.read()
+	# TODO: probably need to clean the filename so it does not have illegal characters
+	url = '/' + object_type + '/' + str(id) + '/image/' + filename
+	if test:
+	    self.tests_run += 1
+	    try:
+		self.generateRequest(url, 'PUT', value)
+		self.printline('PASS: upload image: ' + url)
+		self.tests_passed += 1
+	    except Exception, e:
+		self.printline('FAIL: upload image: ' + url)
+		self.printline('FAIL: ' + str(e))
+	else:
+	    return self.generateRequest(url, 'PUT', value)
+
+    def encode_multipart_formdata(self, files):
+	LIMIT = '----------lImIt_of_THE_fIle_eW_$'
+	CRLF = '\r\n'
+	L = []
+	#for (key, value) in fields:
+	#    L.append('--' + LIMIT)
+	#    L.append('Content-Disposition: form-data; name="%s"' % key)
+	#    L.append('')
+	#    L.append(value)
+	for (key, filename, value) in files:
+	    L.append('--' + LIMIT)
+	    L.append('Content-Disposition: form-data; name="%s"; filename="%s"' % (key, filename))
+	    L.append('Content-Type: %s' % self.get_content_type(filename))
+	    L.append('')
+	    L.append(value)
+	L.append('--' + LIMIT + '--')
+	L.append('')
+	body = CRLF.join(L)
+	content_type = 'multipart/form-data; boundary=%s' % LIMIT
+	return content_type, body
+    
+    def get_content_type(self,filename):
+	return mimetypes.guess_type(filename)[0] or 'application/octet-stream'
