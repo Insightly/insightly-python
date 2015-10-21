@@ -1,11 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 #
-# NOTE: the version 2.2 API is NOT in production yet, use the v2.1 library in the default branch. We are making this branch available
-# for beta testers, but it is not ready for production use yet.
-#
-# NOTE to .NET developers, it is best if you edit this file in a Python aware IDE. Komodo IDE is a good choice. .NET tends to break
-# indentation in Python fields, which will cause bugs.
 #
 # Python client library for v2.1/v2.2 Insightly API
 # Brian McConnell <brian@insight.ly>
