@@ -22,7 +22,7 @@ Version 2.2 of the Insightly API provides a substantial improvement in both perf
 * Swagger documentation and interactive sandbox for testing GET operations. See api.insight.ly/v2.2/Help (you can also auto-generate client SDKs using the Swagger toolkit if you are using a language we do not provide an SDK for)
 * Support for activity sets, follows, pipelines, and more, so the web API is in close alignment with the interactions supported via the web application.
 
-NOTE: version 2.2 should be available for public beta during the week of Sept 21st. In the meantime you can use this library with version 2.1.
+NOTE: version 2.2 is now available for beta testing, and can be accessed at https://api.insight.ly/v2.2/Help while version 2.1 can be reached at https://api.insight.ly/v2.1/Help
 
 ABOUT THIS LIBRARY
 ==================
