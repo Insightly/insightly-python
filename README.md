@@ -37,12 +37,11 @@ USAGE
 
 First, you'll need to instantiate the Insightly class, which you do with the following statement:
 
-i = Insightly(apikey='yourapikey',version='2.1|2.2',debug=False)
+i = Insightly(apikey='yourapikey',version='2.1|2.2',test=False)
 
-Note, if you omit the apikey, it will look for it in a text file named apikey.txt in the working directory.
+Note, if you omit the apikey, it will look for it in a text file named apikey.txt in the working directory. If you omit the version number it will default to v2.2. Use the test mode to log success/fail events to the console and to testresults.txt
 
-Once you have instantiated the Insightly class, you can create, read, update and delete Insightly objects using the create, delete,
-read and update methods.
+Once you have instantiated the Insightly class, you can create, read, update and delete Insightly objects using the create, delete, read and update methods.
 
 FETCHING AND SEARCHING INSIGHTLY OBJECTS
 ========================================
@@ -86,5 +85,5 @@ UPDATING AN INSIGHTLY OBJECT
 
   lead['first_name'] = 'Foozle'
 
-  success = i.update(lead)
+  success = i.update('leads',lead)
 
