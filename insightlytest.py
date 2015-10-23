@@ -46,13 +46,11 @@ def test(apikey='', version='2.2', dev=None):
         contact = i.update('contacts', contact)
         contact_id = contact['CONTACT_ID']
         i.upload_image('contacts', contact_id, 'apollo17.jpg')
-        address = {'ADDRESS_TYPE':'HOME','CITY':'San Francisco', 'STATE':'CA', 'COUNTRY':'United States'}
-        address = i.create_child('contacts', contact_id, 'addresses', address)
+        address = i.create_child('contacts', contact_id, 'addresses', {'ADDRESS_TYPE':'HOME','CITY':'San Francisco', 'STATE':'CA', 'COUNTRY':'United States'})
         if address is not None:
             address_id = address['ADDRESS_ID']
             i.delete('contacts',contact_id,sub_type='addresses',sub_type_id=address_id)
-        contactinfo = {'TYPE':'EMAIL','SUBTYPE':'Home','DETAIL':'foo@bar.com'}
-        contactinfo = i.create_child('contacts', contact_id, 'contactinfos', contactinfo)
+        contactinfo = i.create_child('contacts', contact_id, 'contactinfos', {'TYPE':'EMAIL','SUBTYPE':'Home','DETAIL':'foo@bar.com'})
         if contactinfo is not None:
             contact_info_id = contactinfo['CONTACT_INFO_ID']
             i.delete('contacts', contact_id, sub_type='contactinfos', sub_type_id = contact_info_id)
@@ -128,8 +126,9 @@ def test(apikey='', version='2.2', dev=None):
     lead_statuses = i.read('leadstatuses')
     lead_status = i.create('leadstatuses', {'LEAD_STATUS':'Foozle'})
     if lead_status is not None:
-        lead_status['LEAD_STATUS']='Barzle'
         lead_status_id = lead_status['LEAD_STATUS_ID']
+        lead_status['LEAD_STATUS']='Barzle'
+        lead_status['STATUS_TYPE']=1
         lead_status = i.update('leadstatuses', lead_status)
         i.delete('leadstatuses', lead_status_id)
     notes = i.read('notes')
@@ -280,6 +279,42 @@ def test(apikey='', version='2.2', dev=None):
             team['TEAM_NAME'] = 'Team Bar'
             team = i.update('teams', team)
             i.delete('teams', team_id)
+            
+    #
+    # Next, create a few objects, add links between them, and then delete them
+    #
+    
+    contact_id = None
+    organisation_id = None
+    project_id = None
+    opportunity_id = None
+    
+    contact = i.create('contacts',{'FIRST_NAME':'Foo','LAST_NAME':'Bar'})
+    if contact is not None:
+        contact_id = contact['CONTACT_ID']
+    organisation = i.create('organisations',{'ORGANISATION_NAME':'Foo Corporation'})
+    if organisation is not None:
+        organisation_id = organisation['ORGANISATION_ID']
+    project = i.create('projects',{'PROJECT_NAME':'Foo Corporation','Status':'Not Started'})
+    if project is not None:
+        project_id = project['PROJECT_ID']
+    opportunity = i.create('opportunities',{'OPPORTUNITY_NAME':'Foo Corporation','OPPORTUNITY_STATE':'Open'})
+    if opportunity is not None:
+        opportunity_id = opportunity['OPPORTUNITY_ID']
+    
+    contact = i.create_child('contacts', contact_id, 'links', {'ORGANISATION_ID':organisation_id})
+    organisation = i.create_child('organisations', organisation_id, 'links', {'PROJECT_ID':project_id})
+    project = i.create_child('projects', project_id, 'links', {'ORGANISATION_ID':organisation_id})
+    opportunity = i.create_child('opportunities', opportunity_id, 'links', {'CONTACT_ID':contact_id})
+    
+    if contact_id is not None:
+        i.delete('contacts', contact_id)
+    if organisation_id is not None:
+        i.delete('organisations', organisation_id)
+    if project_id is not None:
+        i.delete('projects', project_id)
+    if opportunity_id is not None:
+        i.delete('opportunities', opportunity_id)
     
     print str(i.tests_passed) + ' out of ' + str(i.tests_run) + ' passed'
     print ''

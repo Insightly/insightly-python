@@ -32,6 +32,10 @@ class Insightly():
     as to add a phone number to a contact, and also more closely mirrors the functionality available in the web app (such as the
     ability to follow and unfollow objects.s)
     
+    API DOCUMENTATION
+    
+    Full API documentation and an interactive sandbox is available at https://api.insight.ly/v2.2/Help
+    
     IMPORTANT NOTE
     
     This version of the client library is not backward compatible with the previous version. In order to simplify the code base, and
@@ -45,7 +49,8 @@ class Insightly():
     file. insightlytest.py and apollo17.jpg are used for testing. The file insightlyexamples.py will be used to highlight short examples
     of simple integrations. 
    
-    USAGE:
+    USAGE
+    
     If you are working with very large recordsets, you should use ODATA filters to access data in smaller chunks. This is a good idea in
     general to minimize server response times. This is no longer an issue with version 2.2, which returns paginated results that you
     can page through using the optional top and skip parameters.
@@ -56,20 +61,45 @@ class Insightly():
     projects = i.read('projects', top=50, filters={'email':'foo@bar.com'})
     print 'Found ' + str(len(projects)) + ' projects'
     
-    The create() function enables you to create an Insightly object
+    The create() function enables you to create an Insightly object, call it as follows:
+	object_graph = i.create(endpoint, object_graph)
+	where object graph is a dictionary
+	for example:
+	
+	contact = i.create('contacts',{'FIRST_NAME':'Foo','LAST_NAME':'Bar'})
     
-    The create_child() function enables you to add a child object, for example to add an address to a contact or organization
+    The create_child() function enables you to add a child object, for example to add an address to a contact, use it as follows:
+	object_graph = i.create_child(endpoint, object_graph)
+	for example:
+	
+	address = i.create_child('contacts',contact_id,'addresses',{'CITY':'San Francisco','STATE':'CA','ADDRESS_TYPE':'Home'})
 
-    The delete() function enables you to delete Insightly objects and child objects
+    The delete() function enables you to delete Insightly objects and child objects, use it as follows:
+	success = i.delete('contacts', contact_id)
+	success = i.delete('contacts', contact_id, sub_type='addresses', sub_type_id=address_id)
 
-    The read() function enables you to get/find Insightly objects, with optional pagination and search terms
+    The read() function enables you to get/find Insightly objects, with optional pagination and search terms, use as follows:
+	contacts = i.read('contacts')
+	contacts = i.read('contacts', top=100, skip=500) # get 100 records after skipping 500
+	contacts = i.read('contacts', filters={'email':'brian@insightly.com'}) # apply an optional filter to search records
     
-    The update() function enables you to update an existing Insightly object
+    The update() function enables you to update an existing Insightly object, use this as follows:
+	project = i.update('projects', project)	# where project is a dictionary containing the object graph
     
-    The upload() function enables you to upload a file to endpoints that accept file attachments
+    The upload() function enables you to upload a file to endpoints that accept file attachments, use this as follows:
+	upload('opportunities', opportunity_id, 'apollo17.jpg')
     
     The upload_image() function enables you to upload an image for a contact, organization, project or opportunity
+	upload('contacts', contact_id, 'apollo17.jpg')
+	
+    ENDPOINTS
     
+    The helper functions work with all endpoints in the API documentation. For example, to get a list of pipelines, you'd call
+    
+    pipelines = i.read('pipelines')
+    
+    See insightlytest.py for examples of how the endpoints are called (the automated test suite covers nearly all endpoints in the API)
+
     AUTOMATED TEST SUITE
     
     The library includes a comprehensive automated test suite, which can be found in insightlytest.py
