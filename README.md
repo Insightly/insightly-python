@@ -1,6 +1,8 @@
 Insightly For Python
 ======
 
+NOTE: this library currently works with Python 2.7. We are working on upgrading it to work also with Python 3.x
+
 The Insightly Python SDK makes it super easy to integrate Insightly into your Python applications and web services, as easy as:
 
   from insightly import Insightly
