@@ -1,8 +1,6 @@
 Insightly For Python
 ======
 
-NOTE: this library currently works with Python 2.7. We are working on upgrading it to work also with Python 3.x
-
 The Insightly Python SDK makes it super easy to integrate Insightly into your Python applications and web services, as easy as:
 
   from insightly import Insightly
@@ -12,6 +10,8 @@ The Insightly Python SDK makes it super easy to integrate Insightly into your Py
   contacts = i.read('contacts', top=100, skip=100, filters={'city':'perth'})
 
 The library takes care of authentication and low level communication, so you can focus on building your custom application or service.
+
+The library has been tested with both Python versions 2.7 and 3.x
 
 MAJOR CHANGES IN VERSION 2.2
 ============================
