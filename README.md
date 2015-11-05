@@ -81,6 +81,10 @@ CREATING AN INSIGHTLY OBJECT
   lead = {'first_name':'foo','last_name':'bar'}
 
   success = i.create('leads', lead)
+  
+  address = {'address_type':'home','city':'San Francisco','state':'CA','country':'United States'}
+  
+  success = i.create_child('contacts', contact_id, 'addresses', address)
 
 UPDATING AN INSIGHTLY OBJECT
 ============================
