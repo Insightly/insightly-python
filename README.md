@@ -65,10 +65,8 @@ To search for a list of records:
 To fetch an individual record:
 
   contact = i.read('contacts',id=123456)
-
-To fetch a sub-element from an individual record (e.g. get addresses linked to a contact):
-
-  addresses = i.read('contacts',id=123456,sub_type='addresses')
+  
+  opportunity = i.read('oportunities',id=123456)
 
 DELETING AN INSIGHTLY OBJECT
 ============================
