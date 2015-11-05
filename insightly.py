@@ -3,6 +3,7 @@
 #
 #
 # Python client library for v2.1/v2.2 Insightly API
+# Supports both Python v2.7 and 3.x
 # Brian McConnell <brian@insight.ly>
 #
 import base64
