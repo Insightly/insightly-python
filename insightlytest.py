@@ -317,7 +317,8 @@ def test(apikey='', version='2.2', dev=None):
         i.delete('opportunities', opportunity_id)
     
     print(str(i.tests_passed) + ' out of ' + str(i.tests_run) + ' passed')
-    print ('')
-    print ('Test Failures')
-    for f in i.test_failures:
-        print (f)
+    if len(i.test_failures) > 0:
+        print ('')
+        print ('Test Failures')
+        for f in i.test_failures:
+            print (f)
