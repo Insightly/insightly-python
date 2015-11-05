@@ -250,7 +250,7 @@ def test(apikey='', version='2.2', dev=None):
     users = i.read('users')
     if users is not None:
         user_id = users[0]['USER_ID']
-        user = i.read('/users/', user_id)
+        user = i.read('users', user_id)
     else:
         user_id = None
     me = i.read('users/me')
@@ -316,8 +316,8 @@ def test(apikey='', version='2.2', dev=None):
     if opportunity_id is not None:
         i.delete('opportunities', opportunity_id)
     
-    print str(i.tests_passed) + ' out of ' + str(i.tests_run) + ' passed'
-    print ''
-    print 'Test Failures'
+    print(str(i.tests_passed) + ' out of ' + str(i.tests_run) + ' passed')
+    print ('')
+    print ('Test Failures')
     for f in i.test_failures:
-        print f
+        print (f)
