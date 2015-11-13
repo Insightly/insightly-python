@@ -170,14 +170,13 @@ class Insightly():
             self.test = False
         
         self.version = str(version)
-        if dev:
-            self.domain = 'https://api.insightly' + dev + '.com/v'
+        if dev is not None:
+            self.domain = dev
+            self.baseurl = dev
         else:
             self.domain = 'https://api.insight.ly/v'
+            self.baseurl = self.domain + self.version
         self.filehandle = open('testresults.txt','w')
-        self.baseurl = self.domain + self.version
-        self.baseurlv21 = self.domain + '2.1'
-        self.baseurlv22 = self.domain + '2.2'
         self.test_data = dict()
         self.test_failures = list()
         if len(apikey) < 1:
@@ -389,12 +388,7 @@ class Insightly():
         else:
             raise Exception('parameter method must be GET|DELETE|PUT|UPDATE')
         # generate full URL from base url and relative url
-        if self.version == '2.1':
-            full_url = self.baseurlv21 + url
-        elif self.version == '2.2':
-            full_url = self.baseurlv22 + url
-        else:
-            full_url = self.baseurl + url
+        full_url = self.baseurl + url
         # self.printline('URL:  ' + full_url)
         request = urllib2.Request(full_url)
         if self.gzip:
