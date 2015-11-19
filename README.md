@@ -56,7 +56,7 @@ endpoints = i.endpoints()
 
 To search for a list of records:
 
-  contacts = i.read('contacts',top=100,filters={'city':'perth')
+  contacts = i.read('contacts',top=100,filters={'city':'perth'})
 
   emails = i.read('emails',top=100,filters={'email_from':'foo@bar.com'})
 
