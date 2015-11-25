@@ -66,7 +66,7 @@ To fetch an individual record:
 
   contact = i.read('contacts',id=123456)
   
-  opportunity = i.read('oportunities',id=123456)
+  opportunity = i.read('opportunities',id=123456)
 
 DELETING AN INSIGHTLY OBJECT
 ============================
