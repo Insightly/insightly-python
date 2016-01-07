@@ -222,9 +222,9 @@ class Insightly():
         
     def check_difference(self, new, old):
         """
-        This returns the difference in checksums between two strings, both stripped of whitespace
-        and converted to lower case. This is used to measure the difference in PUT requests. This is not
-        useful for validating post requests, since the server often includes omitted fields. 
+        This function checks to see if the list of keys in a new object graph differs
+        from the list in the old object graph. This is used to detect situations where
+        a field is not saved or updated for some reason.
         """
         if type(new) is dict and type(old) is dict:
             diff_keys=list()
