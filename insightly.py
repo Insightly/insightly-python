@@ -12,6 +12,7 @@ import json
 import mimetypes
 import string
 import sys
+import traceback
 import urllib
 import zlib
 
@@ -159,6 +160,8 @@ class Insightly():
         Raises an exception if login or call to getUsers() fails, most likely due to an invalid or missing API key
         """
         
+        self.log_file = open(str(version) + '.txt','w')
+        
         self.debug = debug
         if gzip:
             self.gzip = True
@@ -174,11 +177,16 @@ class Insightly():
             self.domain = dev
             self.baseurl = dev
         else:
-            self.domain = 'https://api.insight.ly/v'
-            self.baseurl = self.domain + self.version
+            if version == 'mobile':
+                self.domain = 'https://mobileapi.insightly.com'
+                self.baseurl = self.domain
+            else:
+                self.domain = 'https://api.insight.ly/v'
+                self.baseurl = self.domain + self.version
         self.filehandle = open('testresults.txt','w')
         self.test_data = dict()
         self.test_failures = list()
+        self.slow_endpoints = list()
         if len(apikey) < 1:
             try:
                 f = open('apikey.txt', 'r')
@@ -189,7 +197,7 @@ class Insightly():
         version = str(version)
         self.version = version
         self.swagger = None
-        if version == '2.2' or version == '2.1':
+        if version == '2.2' or version == '2.1' or version == 'mobile':
             self.alt_header = 'Basic '
             self.apikey = apikey
             self.tests_run = 0
@@ -207,6 +215,26 @@ class Insightly():
         else:
             raise Exception('Python library only supports v2.1 or v2.2 APIs. We recommend using v2.2.')
         
+    def check_difference(self, new, old):
+        """
+        This returns the difference in checksums between two strings, both stripped of whitespace
+        and converted to lower case. This is used to measure the difference in PUT requests. This is not
+        useful for validating post requests, since the server often includes omitted fields. 
+        """
+        if type(new) is dict and type(old) is dict:
+            diff_keys=list()
+            oldkeys = old.keys()
+            newkeys = new.keys()
+            for k in oldkeys:
+                if new.get(k,'') != old[k]:
+                    diff_keys.append(k)
+            if len(diff_keys) > 0:
+                self.printline('    DELTA:  ' + str(diff_keys) + ' fields mismatch')
+                self.printline('    POSTED: ' + str(old))
+                self.printline('    RECVD:  ' + str(new))
+            return diff_keys
+        return []
+    
     def create(self, object_type, object_graph, id = None, sub_type = None):
         """
         This is a general purpose write method that can be used to create (POST)
@@ -239,6 +267,7 @@ class Insightly():
                     self.printline('PASS: POST w/ bad auth ' + url)
             if test:
                 self.tests_run += 1
+                start_time = datetime.datetime.now()
                 try:
                     try:
                         text = self.generateRequest(url, 'POST', data).decode()
@@ -246,11 +275,20 @@ class Insightly():
                         text = self.generateRequest(url, 'POST', data)
                     data = json.loads(text)
                     self.tests_passed += 1
+                    end_time = datetime.datetime.now()
+                    td = end_time - start_time
+                    elapsed_time = td.total_seconds()
                     self.printline('PASS: POST ' + url)
+                    self.log(True, url, 'POST', str(elapsed_time))
+                    delta = self.check_difference(data, object_graph)
                     return data
                 except:
+                    end_time = datetime.datetime.now()
+                    td = end_time - start_time
+                    elapsed_time = td.total_seconds()
+                    self.log(False, url, 'POST', str(elapsed_time))
                     self.printline('FAIL: POST ' + url)
-                    self.printline(str(sys.exc_info()))
+                    self.printline('    TRACE: ' + traceback.format_exc())
             else:
                 try:
                     text = self.generateRequest(url, 'POST', data).decode()
@@ -271,6 +309,7 @@ class Insightly():
         link = {'LEAD_ID':lead_id,'TASK_ID':task_id}
         i.create_child('tasks', task_id, 'tasklinks', link)
         """
+        start_time = datetime.datetime.now()
         test = self.test
         object_type = lowercase(object_type)
         if type(object_graph) is dict:
@@ -283,12 +322,21 @@ class Insightly():
                         text = self.generateRequest(url, 'POST', data).decode()
                     except:
                         text = self.generateRequest(url, 'POST', data)
+                    end_time = datetime.datetime.now()
+                    td = end_time - start_time
+                    elapsed_time = td.total_seconds()
+                    self.log(True, url, 'POST', str(elapsed_time))
                     self.tests_passed += 1
                     self.printline('PASS: POST ' + url)
                     data = json.loads(text)
                     return data
                 except:
+                    end_time = datetime.datetime.now()
+                    td = end_time - start_time
+                    elapsed_time = td.total_seconds()
+                    self.log(False, url, 'POST', str(elapsed_time))
                     self.printline('FAIL: POST ' + url)
+                    self.printline('    TRACE: ' + traceback.format_exc())
             else:
                 try:
                     text = self.generateRequest(url, 'POST', data).decode()
@@ -298,6 +346,72 @@ class Insightly():
                 return data
         else:
             raise Exception('object graph must be a Python dictionary')
+        
+    def cruds(self, object_type, object_id, object_graph, repetitions=10, file_handle=None):
+        """
+        This is a test method which goes through the create, update, read, delete cycle for
+        an object. It repeats the process N times, and logs the average response time for
+        each endpoint. 
+        """
+        r = 0
+        timer = dict()
+        
+        print 'TESTING ' + object_type + ' v' + self.version
+        
+        while r < repetitions:
+            # test read method
+            st = datetime.datetime.now()
+            self.tests_run += 1
+            try:
+                self.tests_passed += 1
+                objects = self.read(object_type)
+            except:
+                pass
+            et = datetime.datetime.now()
+            td = et - st
+            timer['read'] = timer.get('read',0.0) + td.total_seconds()
+            
+            st = datetime.datetime.now()
+            self.tests_run += 1
+            try:
+                object_graph = self.create(object_type, object_graph)
+                self.tests_passed += 1
+            except:
+                pass
+            et = datetime.datetime.now()
+            td = et - st
+            timer['create'] = timer.get('create', 0.0) + td.total_seconds()
+
+            st = datetime.datetime.now()
+            self.tests_run += 1
+            try:
+                object_graph = self.update(object_type, object_graph)
+                self.tests_passed += 1
+            except:
+                pass
+            et = datetime.datetime.now()
+            td = et - st
+            timer['update'] = timer.get('update', 0.0) + td.total_seconds()
+
+            st = datetime.datetime.now()
+            self.tests_run += 1
+            try:
+                self.delete(object_type, object_graph[object_id])
+                self.tests_passed += 1
+            except:
+                pass
+            et = datetime.datetime.now()
+            td = et - st
+            timer['delete'] = timer.get('delete', 0.0) + td.total_seconds()
+            
+            r += 1
+        
+        tkeys = timer.keys()
+        for k in tkeys:
+            timer[k] = timer[k] / float(repetitions)
+            if file_handle is not None:
+                line = '"' + str(self.version) + '","' + object_type + '","' + k + '","' + str(timer[k]) + '"\n'
+                file_handle.write(line)
         
     def delete(self, object_type, id, sub_type=None, sub_type_id = None):
         """
@@ -312,6 +426,7 @@ class Insightly():
         if success:
             print 'Deleted lead number ' + str(lead_id)
         """
+        start_time = datetime.datetime.now()
         test = self.test
         object_type = lowercase(object_type)
         url = '/' + object_type
@@ -333,10 +448,19 @@ class Insightly():
             self.tests_run += 1
             try:
                 text = self.generateRequest(url, 'DELETE', '')
+                end_time = datetime.datetime.now()
+                td = end_time - start_time
+                elapsed_time = td.total_seconds()
+                self.log(True, url, 'DELETE', str(elapsed_time))
                 self.printline('PASS: DELETE ' + url)
                 self.tests_passed += 1
             except:
+                end_time = datetime.datetime.now()
+                td = end_time - start_time
+                elapsed_time = td.total_seconds()
+                self.log(False, url, 'DELETE', str(elapsed_time))
                 self.printline('FAIL: DELETE ' + url)
+                self.printline('    TRACE: ' + traceback.format_exc())
         else:
             text = self.generateRequest(url, 'DELETE', '')
             return True
@@ -370,7 +494,7 @@ class Insightly():
             if u.get('EMAIL_ADDRESS','') == email:
                 return u
 
-    def generateRequest(self, url, method, data, alt_auth=None, test=False, headers=None):
+    def generateRequest(self, url, method, data, alt_auth=None, test=False, headers=None, response='body'):
         """
         This method is used by other helper functions to generate HTTPS requests and parse
         server responses. This will minimize the amount of work developers need to do to
@@ -381,7 +505,6 @@ class Insightly():
         if type(url) is not str: raise Exception('url must be a string')
         if type(method) is not str: raise Exception('method must be a string')
         valid_method = False
-        response = None
         text = ''
         if method == 'GET' or method == 'PUT' or method == 'DELETE' or method == 'POST':
             valid_method = True
@@ -396,11 +519,14 @@ class Insightly():
         if alt_auth is not None:
             request.add_header("Authorization", self.alt_header)
         else:
-            try:
-                base64string = str(base64.b64encode(self.apikey.encode('ascii')), encoding='ascii')
-            except:
-                base64string = str(base64.b64encode(self.apikey))
-            base64string.replace('\n','')
+            if self.version == 'mobile':
+                base64string = str(base64.b64encode(self.apikey + ':FromInsightlyMobileApp'))
+            else:
+                try:
+                    base64string = str(base64.b64encode(self.apikey.encode('ascii')), encoding='ascii')
+                except:
+                    base64string = str(base64.b64encode(self.apikey))
+                base64string.replace('\n','')
             header = 'Basic ' + base64string
             request.add_header("Authorization", header)
         request.get_method = lambda: method
@@ -422,7 +548,57 @@ class Insightly():
             except:
                 # fall back to plain text (sometimes the server ignores the gzip encoding request, e.g. staging environment)
                 pass
-        return text
+        if response == 'headers':
+            return result.info().headers
+        else:
+            return text
+        
+    def get(self, object_type, id, sub_type=None, test=False):
+        """
+        Returns a single Insightly object, for example to call /contacts/{id} to get a single
+        contact. Returns a Python dictionary
+        """
+        start_time = datetime.datetime.now()
+        url = '/' + object_type + '/' + str(id)
+        if sub_type is not None:
+            url += '/' + sub_type
+        if test:
+            self.tests_run += 1
+            try:
+                self.generateRequest(url, 'GET', '', alt_auth = 'borkborkborkborkbork')
+                self.printline('FAIL: GET w/ bad auth ' + url)
+            except:
+                self.tests_passed += 1
+                self.printline('PASS: GET w/ bad auth ' + url)
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest(url,'GET','')
+                end_time = datetime.datetime.now()
+                td = end_time - start_time
+                elapsed_time = td.total_seconds()
+                self.tests_passed += 1
+                self.printline('PASS: GET ' + url)
+                self.log(True, url, 'GET', str(elapsed_time))
+                try:
+                    results = json.loads(text)
+                except:
+                    results = json.loads(text.decode('utf-8'))
+                return results
+            except:
+                end_time = datetime.datetime.now()
+                td = end_time - start_time
+                elapsed_time = td.total_seconds()
+                self.log(False, url, 'GET', str(elapsed_time))
+                self.printline('FAIL: GET ' + url)
+                self.printline('    TRACE: ' + traceback.format_exc())
+        else:
+            text = self.generateRequest(url, 'GET', '')
+            try:
+                results = json.loads(text)
+            except:
+                results = json.loads(text.decode('utf-8'))
+            return results
     
     def getMethods(self, test=False):
         """
@@ -430,6 +606,14 @@ class Insightly():
         """
         methods = [method for method in dir(self) if callable(getattr(self, method))]
         return methods
+    
+    def log(self, success, url, method, duration):
+        f = self.log_file
+        if success:
+            success = 'PASS'
+        else:
+            success = 'FAIL'
+        f.write('"' + success + '","' + url + '","' + method + '","' + duration + '"\n')
         
     def ODataQuery(self, querystring, top=None, skip=None, orderby=None, filters=None):
         """
@@ -450,7 +634,7 @@ class Insightly():
         #
         # TODO: double check that this has been implemented correctly
         #
-        if str(self.version) == '2.2':
+        if str(self.version) == '2.2' or self.version == 'mobile':
             if type(querystring) is str:
                 if top is not None:
                     querystring += '?top=' + str(top)
@@ -558,6 +742,7 @@ class Insightly():
         if test:
             self.tests_run += 1
             try:
+                start_time = datetime.datetime.now()
                 text = self.generateRequest(url,'GET','')
                 self.tests_passed += 1
                 self.printline('PASS: GET ' + url)
@@ -565,9 +750,18 @@ class Insightly():
                     results = self.dictToList(json.loads(text))
                 except:
                     results = self.dictToList(json.loads(text.decode('utf-8')))
+                end_time = datetime.datetime.now()
+                td = end_time - start_time
+                elapsed_time = td.total_seconds()
+                self.log(True, url, 'GET', str(elapsed_time))
                 return results
             except:
+                end_time = datetime.datetime.now()
+                td = end_time - start_time
+                elapsed_time = td.total_seconds()
+                self.log(False, url, 'GET', str(elapsed_time))
                 self.printline('FAIL: GET ' + url)
+                self.printline('    TRACE: ' + traceback.format_exc())
         else:
             text = self.generateRequest(url, 'GET', '')
             try:
@@ -575,6 +769,123 @@ class Insightly():
             except:
                 results = self.dictToList(json.loads(text.decode('utf-8')))
             return results
+        
+    def record_count(self, object_type, id=None, sub_type=None):
+        if object_type == 'comments':
+            record_id = 'COMMENT_ID'
+        elif object_type == 'contacts':
+            record_id = 'CONTACT_ID'
+        elif object_type == 'emails':
+            record_id = 'EMAIL_ID'
+        elif object_type == 'events':
+            record_id = 'EVENT_ID'
+        elif object_type == 'leads':
+            record_id = 'LEAD_ID'
+        elif object_type == 'notes':
+            record_id = 'NOTE_ID'
+        elif object_type == 'organisations':
+            record_id = 'ORGANISATION_ID'
+        elif object_type == 'opportunities':
+            record_id = 'OPPORTUNITY_ID'
+        elif object_type == 'projects':
+            record_id = 'PROJECT_ID'
+        elif object_type == 'tasks':
+            record_id = 'TASK_ID'
+        else:
+            record_id = 'ID'
+        num_records = 0
+        url = '/' + object_type + '?count_total=true'
+        headers = self.generateRequest(url, 'GET', None, response='headers')
+        for h in headers:
+            pv = string.split(h, ':')
+            if len(pv) > 1:
+                parm = pv[0]
+                value = pv[1]
+                if string.count(parm, 'Total-Count') > 0:
+                    num_records = int(string.strip(value))
+        if num_records > 0:
+            skip = 0
+            records_found = 0
+            last_id = 0
+            if self.version == 'mobile':
+                done = False
+                while not done:
+                    if skip > 0:
+                        url = '/' + object_type + '?top=500&id_after=' + str(last_id)
+                    else:
+                        url = '/' + object_type + '?top=500'
+                    response = self.generateRequest(url, 'GET', None)
+                    records = json.loads(response)
+                    records_found += len(records)
+                    if len(records) < 1:
+                        done = True
+                    else:
+                        skip += 500
+                        last_id = records[len(records) - 1][record_id]
+                self.printline('FOUND ' + str(records_found) + ' of ' + str(num_records) + ' expected ' + object_type)
+            else:
+                return
+        
+    def search(self, object_type, expression, top=None, skip=None):
+        """
+        This implements an easier to use search function, where before we
+        used optional parameters for the read function. This is still supported
+        but users are encouraged to use this function instead.
+        
+        USAGE
+        
+        contacts = i.search('contacts', 'email=foo@bar.com', top=100, filters={'OWNER_USER_ID':'foo'})
+        
+        PARAMETERS
+        
+        expression : a parm=value pair for an allowed server side filter (e.g. phone=415551212)
+        top : return the first N entries
+        skip : skip N entries (for pagination)
+        """
+        start_time = datetime.datetime.now()
+        test = self.test
+        url = '/' + object_type + '/search'
+        url += '?' + expression
+        if top is not None:
+            url += '&top=' + str(top)
+        if skip is not None:
+            url += '&skip=' + str(skip)
+        if test:
+            self.tests_run += 1
+            try:
+                self.generateRequest(url, 'GET', '', alt_auth = 'borkborkborkborkbork')
+                self.printline('FAIL: GET/SEARCH w/ bad auth ' + url)
+            except:
+                self.tests_passed += 1
+                self.printline('PASS: GET/SEARCH w/ bad auth ' + url)
+        if test:
+            self.tests_run += 1
+            try:
+                text = self.generateRequest(url,'GET','')
+                end_time = datetime.datetime.now()
+                td = end_time - start_time
+                elapsed_time = td.total_seconds()
+                self.tests_passed += 1
+                self.log(True, url, 'GET', str(elapsed_time))
+                self.printline('PASS: GET/SEARCH ' + url)
+                try:
+                    results = self.dictToList(json.loads(text))
+                except:
+                    results = self.dictToList(json.loads(text.decode('utf-8')))
+            except:
+                end_time = datetime.datetime.now()
+                td = end_time - start_time
+                elapsed_time = td.total_seconds()
+                self.log(False, url, 'GET', str(elapsed_time))
+                self.printline('FAIL: GET/SEARCH ' + url)
+                self.printline(    'TRACE: ' + traceback.format_exc())
+                return
+        else:
+            text = self.generateRequest(url, 'GET', '')
+            try:
+                results = self.dictToList(json.loads(text))
+            except:
+                results = self.dictToList(json.loads(text.decode('utf-8')))
         
     def update(self, object_type, object_graph, id = None, sub_type = None):
         """
@@ -593,6 +904,7 @@ class Insightly():
             if success:
                 print 'Updated lead number ' + str(lead_id)
         """
+        start_time = datetime.datetime.now()
         object_type = lowercase(object_type)
         test = self.test
         if type(object_graph) is dict:
@@ -617,12 +929,21 @@ class Insightly():
                         text = self.generateRequest(url, 'PUT', data).decode()    
                     except:
                         text = self.generateRequest(url, 'PUT', data)
+                    end_time = datetime.datetime.now()
+                    td = end_time - start_time
+                    elapsed_time = td.total_seconds()
+                    self.log(True, url, 'PUT', str(elapsed_time))
                     data = json.loads(text)
                     self.printline('PASS: PUT ' + url)
                     self.tests_passed += 1
                     return data
                 except:
+                    end_time = datetime.datetime.now()
+                    td = end_time - start_time
+                    elapsed_time = td.total_seconds()
+                    self.log(False, url, 'PUT', str(elapsed_time))
                     self.printline('FAIL: PUT ' + url)
+                    self.printline(    'TRACE: ' + traceback.format_exc())
             else:
                 try:
                     text = self.generateRequest(url, 'PUT', data).decode()    
@@ -634,6 +955,7 @@ class Insightly():
             raise Exception('object_graph must be a Python dictionary')
         
     def upload(self, object_type, id, filename):
+        start_time = datetime.datetime.now()
         test = self.test
         f = open(filename, 'rb')
         value = f.read()
@@ -649,11 +971,20 @@ class Insightly():
                     text = self.generateRequest(url, 'POST', body, headers=headers).decode()
                 except:
                     text = self.generateRequest(url, 'POST', body, headers=headers)
+                end_time = datetime.datetime.now()
+                td = end_time - start_time
+                elapsed_time = td.total_seconds()
+                self.log(True, url, 'POST', str(elapsed_time))
                 self.printline('PASS: UPLOAD ' + url)
                 self.tests_passed += 1
                 return json.loads(text)
             except:
+                end_time = datetime.datetime.now()
+                td = end_time - start_time
+                elapsed_time = td.total_seconds()
+                self.log(False, url, 'POST', str(elapsed_time))
                 self.printline('FAIL: UPLOAD ' + url)
+                self.printline(    'TRACE: ' + traceback.format_exc())
         else:
             try:
                 text = self.generateRequest(url, 'POST', body, headers=headers).decode()
@@ -662,6 +993,7 @@ class Insightly():
             return json.loads(text)
     
     def upload_image(self, object_type, id, filename):
+        start_time = datetime.datetime.now()
         test = self.test
         f = open(filename, 'rb')
         value = f.read()
@@ -671,10 +1003,19 @@ class Insightly():
             self.tests_run += 1
             try:
                 self.generateRequest(url, 'PUT', value)
-                self.printline('PASS: upload image: ' + url)
+                end_time = datetime.datetime.now()
+                td = end_time - start_time
+                elapsed_time = td.total_seconds()
+                self.log(True, url, 'PUT', str(elapsed_time))
+                self.printline('PASS: UPLOAD IMAGE: ' + url)
                 self.tests_passed += 1
             except:
-                self.printline('FAIL: upload image: ' + url)
+                end_time = datetime.datetime.now()
+                td = end_time - start_time
+                elapsed_time = td.total_seconds()
+                self.log(False, url, 'PUT', str(elapsed_time))
+                self.printline('FAIL: UPLOAD IMAGE: ' + url)
+                self.printline(    'TRACE: ' + traceback.format_exc())
         else:
             return self.generateRequest(url, 'PUT', value)
         
