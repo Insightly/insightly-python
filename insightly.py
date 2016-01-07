@@ -91,11 +91,16 @@ class Insightly():
     The delete() function enables you to delete Insightly objects and child objects, use it as follows:
         success = i.delete('contacts', contact_id)
         success = i.delete('contacts', contact_id, sub_type='addresses', sub_type_id=address_id)
+        
+    The get() function returns a single Python dictionary or None for a specific identified record. Use as follows:
+        contact = i.get('contacts', contact_id)
 
     The read() function enables you to get/find Insightly objects, with optional pagination and search terms, use as follows:
         contacts = i.read('contacts')
         contacts = i.read('contacts', top=100, skip=500) # get 100 records after skipping 500
-        contacts = i.read('contacts', filters={'email':'brian@insightly.com'}) # apply an optional filter to search records
+    
+    The search() function is used to do server filtered searches, use as follows:
+        contacts = i.search('contacts', 'email=foo.com', top=100, skip=200)
     
     The update() function enables you to update an existing Insightly object, use this as follows:
         project = i.update('projects', project)        # where project is a dictionary containing the object graph
@@ -842,6 +847,8 @@ class Insightly():
         top : return the first N entries
         skip : skip N entries (for pagination)
         """
+        if self.version != '2.2':
+            raise Exception('search() is only supported in v2.2 API')
         start_time = datetime.datetime.now()
         test = self.test
         url = '/' + object_type + '/search'
