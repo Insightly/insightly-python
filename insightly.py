@@ -831,7 +831,7 @@ class Insightly():
             else:
                 return
         
-    def search(self, object_type, expression, top=None, skip=None):
+    def search(self, object_type, expression, top=None, skip=None, expect=0):
         """
         This implements an easier to use search function, where before we
         used optional parameters for the read function. This is still supported
@@ -872,13 +872,20 @@ class Insightly():
                 end_time = datetime.datetime.now()
                 td = end_time - start_time
                 elapsed_time = td.total_seconds()
-                self.tests_passed += 1
                 self.log(True, url, 'GET', str(elapsed_time))
                 self.printline('PASS: GET/SEARCH ' + url)
                 try:
                     results = self.dictToList(json.loads(text))
                 except:
                     results = self.dictToList(json.loads(text.decode('utf-8')))
+                if expect == 0:
+                    if len(results) < 1:
+                        raise Exception('No records found, assume search test failed.')
+                else:
+                    if len(results) != expect:
+                        raise Exception('Incorrect number of results found, assume search test failed.')
+                self.tests_passed += 1
+                return results
             except:
                 end_time = datetime.datetime.now()
                 td = end_time - start_time
@@ -886,13 +893,14 @@ class Insightly():
                 self.log(False, url, 'GET', str(elapsed_time))
                 self.printline('FAIL: GET/SEARCH ' + url)
                 self.printline(    'TRACE: ' + traceback.format_exc())
-                return
+                return []
         else:
             text = self.generateRequest(url, 'GET', '')
             try:
                 results = self.dictToList(json.loads(text))
             except:
                 results = self.dictToList(json.loads(text.decode('utf-8')))
+            return results
         
     def update(self, object_type, object_graph, id = None, sub_type = None):
         """
