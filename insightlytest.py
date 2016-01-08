@@ -25,6 +25,7 @@
 
 import datetime
 import string
+import time
 from insightly import Insightly
 
 dummy_comment = {u'TITLE':u'こんにちは世界',u'BODY':u'The body'}
@@ -899,6 +900,8 @@ def test_v22(apikey='', dev=None):
     contact_ids.append(i.create('contacts', contact_data)['CONTACT_ID'])
     contact_ids.append(i.create('contacts', contact_data)['CONTACT_ID'])
     
+    time.sleep(5)
+    
     contacts = i.search('contacts','email=xyzxyz@xyzxyz.com', expect=3)
     contacts = i.search('contacts','first_name=xyzxyz', expect=3)
     contacts = i.search('contacts','last_name=xyzxyz', expect=3)
@@ -955,6 +958,8 @@ def test_v22(apikey='', dev=None):
     lead_ids.append(i.create('leads',lead_data)['LEAD_ID'])
     lead_ids.append(i.create('leads',lead_data)['LEAD_ID'])
     lead_ids.append(i.create('leads',lead_data)['LEAD_ID'])
+    
+    time.sleep(5)
     
     leads = i.search('leads','first_name=xyzxyz', expect=3)
     leads = i.search('leads','last_name=xyzxyz', expect=3)
@@ -1029,6 +1034,8 @@ def test_v22(apikey='', dev=None):
     organisation_ids.append(i.create('organisations', organisation_data)['ORGANISATION_ID'])
     organisation_ids.append(i.create('organisations', organisation_data)['ORGANISATION_ID'])
     organisation_ids.append(i.create('organisations', organisation_data)['ORGANISATION_ID'])
+    
+    time.sleep(5)
     
     organisations = i.search('organisations','organisation_name=xyzxyz', expect=3)
     organisations = i.search('organisations','email=xyzxyz@xyzxyz.com', expect=3)
