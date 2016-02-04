@@ -78,6 +78,7 @@ def test_mobile(apikey='', dev='https://mobileapi.insightly.com'):
     # Get a user id for use with endpoints that need a user assigned
     users = i.read('users', top=1)
     user_id = users[0]['USER_ID']
+    responsible_user_id = user_id
     
     # Check commments endpoints
     comments = i.read('Comments?updated_after_utc=2015-11-01&top=10')
@@ -99,6 +100,7 @@ def test_mobile(apikey='', dev='https://mobileapi.insightly.com'):
     i.record_count('contacts')
     if len(contacts) > 0:
         contact = contacts[0]
+        contact = i.update('contacts', contact)
         contact_id = contact['CONTACT_ID']
         contact = i.read('Contacts', contact_id)
         if type(contact) is list:
@@ -111,7 +113,8 @@ def test_mobile(apikey='', dev='https://mobileapi.insightly.com'):
         i.delete('contacts', contact_id, 'image')
         details = i.read('Contacts', contact_id, 'full')
         contact = i.update('Contacts', contact)
-        contact = i.create('Contacts', dummy_contact)
+        contact = dummy_contact
+        contact = i.create('Contacts', contact)
         contact_id = contact['CONTACT_ID']
         organizations = i.read('organisations',top=5)
         if organizations is not None:
@@ -219,7 +222,9 @@ def test_mobile(apikey='', dev='https://mobileapi.insightly.com'):
         opportunity_id = opportunities[0]['OPPORTUNITY_ID']
         opportunity = i.get('opportunities', opportunity_id)
         details = i.get('opportunities', opportunity_id, 'full')
-    opportunity = i.create('opportunities', dummy_opportunity)
+    opportunity = dummy_opportunity
+    opportunity['RESPONSIBLE_USER_ID'] = responsible_user_id
+    opportunity = i.create('opportunities', opportunity)
     if opportunity is not None:
         opportunity = i.update('opportunities', opportunity)
         opportunity_id = opportunity['OPPORTUNITY_ID']
@@ -272,8 +277,20 @@ def test_mobile(apikey='', dev='https://mobileapi.insightly.com'):
         project_id = project['PROJECT_ID']
         project = i.get('projects', project_id)
         details = i.read('projects', project_id, 'full')
-    project = i.create('projects', dummy_project)
+    pipeline_stages = i.read('pipelinestages')
+    if pipeline_stages is not None:
+        pipeline_id = pipeline_stages[0]['PIPELINE_ID']
+        stage_id = pipeline_stages[0]['STAGE_ID']
+    else:
+        pipeline_id = None
+        stage_id = None
+    project = dummy_project
+    project['RESPONSIBLE_USER_ID'] = responsible_user_id
+    project = i.create('projects', project)
     if project is not None:
+        if pipeline_id is not None:
+            project['PIPELINE_ID'] = pipeline_id
+            project['STAGE_ID'] = stage_id
         project = i.update('projects', project)
         project_id = project['PROJECT_ID']
         i.create_child('projects', project_id, 'follow', {})
@@ -497,6 +514,9 @@ def test_v21(apikey='', dev=None):
     if pipeline_stages is not None:
         stage_id = pipeline_stages[0]['STAGE_ID']
         pipeline_stage = i.read('pipelinestages', stage_id)
+    else:
+        stage_id = None
+        pipeline_id = None
     
     projects = i.read('projects')
     if projects is not None:
@@ -506,6 +526,9 @@ def test_v21(apikey='', dev=None):
         if project is not None:
             project_id = project['PROJECT_ID']
             project['PROJECT_NAME']='Barzle Corporation'
+            if stage_id is not None:
+                project['PIPELINE_ID'] = pipeline_id
+                project['STAGE_ID'] = stage_id
             project = i.update('projects', project)
             i.upload_image('projects', project_id, 'apollo17.jpg')
             i.delete('projects', project_id, sub_type='image')
@@ -565,6 +588,120 @@ def test_v22(apikey='', dev=None):
     i = Insightly(apikey=apikey, version='2.2', dev=dev, test=True)
     i.tests_run = 0
     i.tests_passed = 0
+    
+    # test permissions, create object with visible_to=owner, switch API key, view
+    
+    apikeys = list()
+    
+    try:
+        f = open('api-keys.csv','r')
+        text = f.read()
+        rows = string.split(text,'\n')
+        for r in rows:
+            cols = string.split(r,',')
+            if len(cols) == 5:
+                apikeys.append(cols[4])
+    except:
+        apikeys = None
+    
+    if apikeys is not None:
+        i.apikey = apikeys[0]
+        contact = dummy_contact
+        contact[u'VISIBLE_TO'] = u'OWNER'
+        contact = i.create('contacts', contact)
+        contact_id = contact['CONTACT_ID']
+        i.apikey = apikeys[1]
+        i.tests_run += 1
+        try:
+            contact = i.get('contacts', contact_id)
+            i.printline('FAIL: /contacts permissions')
+        except:
+            i.tests_passed += 1
+            i.printline('PASS: /contacts permissions')
+            
+        i.apikey = apikeys[0]
+        i.delete('contacts', contact_id)
+        
+        event = dummy_event
+        event[u'PUBLICLY_VISIBLE'] = False
+        event = i.create('events', event)
+        event_id = event['EVENT_ID']
+        i.apikey = apikeys[1]
+        i.tests_run += 1
+        try:
+            event = i.get('events', event_id)
+            i.printline('FAIL: /events permissions')
+        except:
+            i.tests_passed += 1
+            i.printline('PASS: /events permissions')
+        
+        i.apikey = apikeys[0]
+        i.delete('events', event_id)
+        
+        lead = dummy_lead
+        lead[u'VISIBLE_TO'] = u'OWNER'
+        lead = i.create('leads', lead)
+        lead_id = lead['LEAD_ID']
+        i.apikey = apikeys[1]
+        i.tests_run += 1
+        try:
+            lead = i.get('leads', lead_id)
+            i.printline('FAIL: /leads permissions')
+        except:
+            i.tests_passed ++ 1
+            i.printline('PASS: /leads permissions')
+            
+        i.apikey = apikeys[0]
+        i.delete('leads', lead_id)
+        
+        opportunity = dummy_opportunity
+        opportunity[u'VISIBLE_TO'] = u'OWNER'
+        opportunity = i.create('opportunities', opportunity)
+        opportunity_id = opportunity['OPPORTUNITY_ID']
+        i.apikey = apikeys[1]
+        i.tests_run += 1
+        try:
+            opportunity = i.get('opportunities', opportunity_id)
+            i.printline('FAIL: /opportunities permissions')
+        except:
+            i.tests_passed ++ 1
+            i.printline('PASS: /opportunities permissions')
+            
+        i.apikey = apikeys[0]
+        i.delete('opportunities', opportunity_id)
+            
+        organisation = dummy_organisation
+        organisation[u'VISIBLE_TO'] = u'OWNER'
+        organisation = i.create('organisations', organisation)
+        organisation_id = organisation['ORGANISATION_ID']
+        i.apikey = apikeys[1]
+        i.tests_run += 1
+        try:
+            organisation = i.get('organisations', organisation_id)
+            i.printline('FAIL: /organisations permissions')
+        except:
+            i.tests_passed += 1
+            i.printline('PASS: /organisations permissions')
+            
+        i.apikey = apikeys[0]
+        i.delete('organisations', organisation_id)
+        
+        project = dummy_project
+        project[u'VISIBLE_TO'] = u'OWNER'
+        project = i.create('projects', project)
+        project_id = project['PROJECT_ID']
+        i.apikey = apikeys[1]
+        i.tests_run += 1
+        try:
+            project = i.get('projects', project_id)
+            i.printline('FAIL: /projects permissions')
+        except:
+            i.tests_passed += 1
+            i.printline('PASS: /projects permissions')
+            
+        i.apikey = apikeys[0]
+        i.delete('projects', project_id)
+    
     # test activity sets
     activity_sets = i.read('activitysets')
     if activity_sets is not None:
@@ -759,6 +896,9 @@ def test_v22(apikey='', dev=None):
     if pipeline_stages is not None:
         stage_id = pipeline_stages[0]['STAGE_ID']
         pipeline_stage = i.read('pipelinestages', stage_id)
+    else:
+        stage_id = None
+        pipeline_id = None
     
     projects = i.read('projects')
     if projects is not None:
@@ -768,6 +908,9 @@ def test_v22(apikey='', dev=None):
         if project is not None:
             project_id = project['PROJECT_ID']
             project['PROJECT_NAME']='Barzle Corporation'
+            if stage_id is not None:
+                project['PIPELINE_ID'] = pipeline_id
+                project['STAGE_ID'] = stage_id
             project = i.update('projects', project)
             i.upload_image('projects', project_id, 'apollo17.jpg')
             i.delete('projects', project_id, sub_type='image')

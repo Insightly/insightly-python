@@ -604,6 +604,59 @@ class Insightly():
             except:
                 results = json.loads(text.decode('utf-8'))
             return results
+        
+    def get_all(self, object_type, updated_after_utc=None, ids_only=True):
+        """
+        Iterates through the entire recordset for an object type, optionally filtered by updated_after_utc,
+        returns a list of object IDs if ids_only is True
+        """
+        if self.version == 'mobile' or self.version == '2.1':
+            done = False
+            skip = 0
+            top = 100
+            results = list()
+            updated_after_utc = string.replace(updated_after_utc,' ','+')
+            while not done:
+                if updated_after_utc is not None:
+                    records = self.search(object_type, 'updated_after_utc=' + updated_after_utc, top=top, skip=skip)
+                else:
+                    records = self.search(object_type, '', top=top, skip=skip)
+                print 'Search top ' + str(top) + ' after ' + str(skip) + ' since ' + updated_after_utc + ' found ' + str(len(records))
+                skip += top
+                for r in records:
+                    if ids_only:
+                        if object_type == 'contacts':
+                            object_id = r['CONTACT_ID']
+                        elif object_type == 'emails':
+                            object_id = r['EMAIL_ID']
+                        elif object_type == 'events':
+                            object_id = r['EVENT_ID']
+                        elif object_type == 'leads':
+                            object_id = r['LEAD_ID']
+                        elif object_type == 'notes':
+                            object_id = r['NOTE_ID']
+                        elif object_type == 'opportunities':
+                            object_id = r['OPPORTUNITY_ID']
+                        elif object_type == 'organisations':
+                            object_id = r['ORGANISATION_ID']
+                        elif object_type == 'projects':
+                            object_id = r['PROJECT_ID']
+                        elif object_type == 'tasks':
+                            object_id = r['TASK_ID']
+                        elif object_type == 'users':
+                            object_id = r['USER_ID']
+                        else:
+                            object_id = None
+                        if object_id is not None:
+                            if object_id not in results:
+                                results.append(object_id)
+                    else:
+                        results.append(r)
+                if len(records) < 1:
+                    done = True
+            return results
+        else:
+            raise Exception('get_all() is only supported for version 2.2 and mobile APIs')
     
     def getMethods(self, test=False):
         """
@@ -831,7 +884,7 @@ class Insightly():
             else:
                 return
         
-    def search(self, object_type, expression, top=None, skip=None, expect=0):
+    def search(self, object_type, expression, top=100, skip=0, expect=0):
         """
         This implements an easier to use search function, where before we
         used optional parameters for the read function. This is still supported
@@ -851,12 +904,11 @@ class Insightly():
             raise Exception('search() is only supported in v2.2 API')
         start_time = datetime.datetime.now()
         test = self.test
-        url = '/' + object_type + '/search'
-        url += '?' + expression
-        if top is not None:
-            url += '&top=' + str(top)
-        if skip is not None:
+        url = '/' + object_type + '/search?top=' + str(top)
+        if skip > 0:
             url += '&skip=' + str(skip)
+        if string.count(expression,'=') > 0:
+            url += '&' + expression
         if test:
             self.tests_run += 1
             try:
@@ -938,6 +990,11 @@ class Insightly():
                     self.tests_passed += 1
                     self.printline('PASS: PUT w/ bad auth ' + url)
             if test:
+                try:
+                    self.tests_run += 1
+                    date_updated_utc = object_graph['DATE_UPDATED_UTC']
+                except:
+                    date_updated_utc = None
                 self.tests_run += 1
                 try:
                     try:
@@ -951,6 +1008,15 @@ class Insightly():
                     data = json.loads(text)
                     self.printline('PASS: PUT ' + url)
                     self.tests_passed += 1
+                    if date_updated_utc is not None:
+                        try:
+                            if date_updated_utc != data['DATE_UPDATED_UTC']:
+                                self.tests_passed += 1
+                                self.printline('PASS: ' + object_type + ' DATE_UPDATED_UTC updated')
+                            else:
+                                self.printline('FAIL: ' + object_type + ' DATE_UPDATED_UTC not updated')
+                        except:
+                            pass
                     return data
                 except:
                     end_time = datetime.datetime.now()
