@@ -28,6 +28,17 @@ def lowercase(text):
         lc = string.lower(text)
     return lc
 
+def encode_query(text):
+    qs = ''
+    for t in text:
+        c = ord(t)
+        if c < 128:
+            qs += t
+        else:
+            h = hex(c).replace('0x','')
+            qs += '%u' + h
+    return qs
+
 class Insightly():
     """
     Insightly Python library for Insightly API v2.2
@@ -908,7 +919,12 @@ class Insightly():
         if skip > 0:
             url += '&skip=' + str(skip)
         if string.count(expression,'=') > 0:
-            url += '&' + expression
+            parms = string.split(expression,'=')
+            if len(parms) == 2:
+                parm = parms[0]
+                parm = parm.encode('ascii','xmlcharrefreplace')
+                value = encode_query(parms[1])
+                url += '&' + parm + '=' + value
         if test:
             self.tests_run += 1
             try:

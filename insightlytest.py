@@ -620,6 +620,7 @@ def test_v22(apikey='', dev=None):
             i.printline('PASS: /contacts permissions')
             
         i.apikey = apikeys[0]
+        contacts = i.search('contacts','first_name=' + dummy_contact['FIRST_NAME'])
         i.delete('contacts', contact_id)
         
         event = dummy_event
@@ -642,6 +643,7 @@ def test_v22(apikey='', dev=None):
         lead[u'VISIBLE_TO'] = u'OWNER'
         lead = i.create('leads', lead)
         lead_id = lead['LEAD_ID']
+        leads = i.search('leads','first_name=' + dummy_lead['FIRST_NAME'])
         i.apikey = apikeys[1]
         i.tests_run += 1
         try:
@@ -658,6 +660,7 @@ def test_v22(apikey='', dev=None):
         opportunity[u'VISIBLE_TO'] = u'OWNER'
         opportunity = i.create('opportunities', opportunity)
         opportunity_id = opportunity['OPPORTUNITY_ID']
+        opportunities = i.search('opportunities', 'opportunity_name=' + dummy_opportunity['OPPORTUNITY_NAME'])
         i.apikey = apikeys[1]
         i.tests_run += 1
         try:
@@ -674,6 +677,7 @@ def test_v22(apikey='', dev=None):
         organisation[u'VISIBLE_TO'] = u'OWNER'
         organisation = i.create('organisations', organisation)
         organisation_id = organisation['ORGANISATION_ID']
+        organizations = i.search('organisations', 'organisation_name=' + dummy_organisation['ORGANISATION_NAME'])
         i.apikey = apikeys[1]
         i.tests_run += 1
         try:
@@ -690,6 +694,7 @@ def test_v22(apikey='', dev=None):
         project[u'VISIBLE_TO'] = u'OWNER'
         project = i.create('projects', project)
         project_id = project['PROJECT_ID']
+        projects = i.search('projects', 'project_name=' + dummy_project['PROJECT_NAME'])
         i.apikey = apikeys[1]
         i.tests_run += 1
         try:
@@ -943,8 +948,9 @@ def test_v22(apikey='', dev=None):
         user_id = None
     me = i.read('users/me')
     if user_id is not None:
-        task = i.create('tasks', {u'TITLE':'Test',u'STATUS':u'NOT STARTED',u'COMPLETED':False,u'PUBLICLY_VISIBLE':True,u'RESPONSIBLE_USER_ID':user_id})
+        task = i.create('tasks', {u'TITLE':u'こんにちは世界',u'STATUS':u'NOT STARTED',u'COMPLETED':False,u'PUBLICLY_VISIBLE':True,u'RESPONSIBLE_USER_ID':user_id})
         if task is not None:
+            tasks = i.search('tasks','title=' + task['TITLE'])
             task['TITLE'] = task['TITLE'] + 'foo'
             task_id = task['TASK_ID']
             task = i.update('tasks', task)
@@ -1003,241 +1009,7 @@ def test_v22(apikey='', dev=None):
         i.delete('projects', project_id)
     if opportunity_id is not None:
         i.delete('opportunities', opportunity_id)
-        
-    #
-    # Next, test search operations to verify they are returning correct results for various filters
-    #
-    
-    contact_search_fields = ['email','tag','phone_number','first_name','last_name','city','state','postcode','country']
-    contact_data = {
-        'FIRST_NAME':'xyzxyz',
-        'LAST_NAME':'xyzxyz',
-        'ADDRESSES':[{
-            'ADDRESS_TYPE':'WORK',
-            'CITY':'xyzxyz',
-            'STATE':'xyzxyz',
-            'POSTCODE':'xyzxyz'
-        }],
-        'CONTACTINFOS':[{
-            'TYPE':'EMAIL',
-            'LABEL':'WORK',
-            'DETAIL':'xyzxyz@xyzxyz.com'
-        },
-        {
-            'TYPE':'PHONE',
-            'LABEL':'WORK',
-            'DETAIL':'123123123'
-        }],
-        'TAGS':[{'TAG_NAME':'xyzxyz'}]
-    }
-    
-    contacts = i.search('contacts','first_name=xyzxyz')
-    if contacts is not None:
-        for contact in contacts:
-            contact_id = contact.get('CONTACT_ID',None)
-            if contact_id is not None:
-                i.delete('contacts', contact_id)
-    
-    contact_ids = list()
-    contact_ids.append(i.create('contacts', contact_data)['CONTACT_ID'])
-    contact_ids.append(i.create('contacts', contact_data)['CONTACT_ID'])
-    contact_ids.append(i.create('contacts', contact_data)['CONTACT_ID'])
-    
-    time.sleep(5)
-    
-    contacts = i.search('contacts','email=xyzxyz@xyzxyz.com', expect=3)
-    contacts = i.search('contacts','first_name=xyzxyz', expect=3)
-    contacts = i.search('contacts','last_name=xyzxyz', expect=3)
-    contacts = i.search('contacts','city=xyzxyz', expect=3)
-    contacts = i.search('contacts','state=xyzxyz', expect=3)
-    contacts = i.search('contacts','postcode=xyzxyz', expect=3)
-    contacts = i.search('contacts','phone_number=123123123', expect=3)
-    contacts = i.search('contacts','tag=xyzxyz', expect=3)
-
-    for c in contact_ids:
-        i.delete('contacts', c)
-    
-    emails = i.read('emails', top=1)
-    if len(emails) > 0:
-        email = emails[0]
-        email_from = str(email['EMAIL_FROM'])
-        email_to = string.split(str(email['EMAIL_TO']),',')
-        if len(email_to) > 0:
-            email_to = email_to[0]
-        else:
-            email_to = None
-        
-        if email_to is not None:
-            emails = i.search('emails','email_to=' + email_to)
-        emails = i.search('emails','email_from=' + email_from)
             
-    events = i.read('events', top=1)
-    if len(events) > 0:
-        event = events[0]
-        title = string.replace(event['TITLE'],' ','+')
-        owner_user_id = str(event['OWNER_USER_ID'])
-        start_date_utc = string.split(event['START_DATE_UTC'],' ')[0]
-        end_date_utc = string.split(event['END_DATE_UTC'],' ')[0]
-        
-        events = i.search('events','title=' + str(title))
-        events = i.search('events','owner_user_id=' + owner_user_id)
-        events = i.search('events', 'start_date_utc=' + str(start_date_utc))
-        events = i.search('events', 'end_date_utc=' + str(end_date_utc))
-            
-    lead_data = {
-        'FIRST_NAME':'xyzxyz',
-        'LAST_NAME':'xyzxyz',
-        'PHONE_NUMBER':'123123123',
-        'EMAIL_ADDRESS':'xyzxyz@xyzxyz.com',
-        'ADDRESS_CITY':'xyzxyz',
-        'ADDRESS_STATE':'xyzxyz',
-        'ADDRESS_POSTCODE':'xyzxyz',
-        'TAGS':[
-            {'TAG_NAME':'xyzxyz'}
-        ]
-    }
-    
-    lead_ids = list()
-    lead_ids.append(i.create('leads',lead_data)['LEAD_ID'])
-    lead_ids.append(i.create('leads',lead_data)['LEAD_ID'])
-    lead_ids.append(i.create('leads',lead_data)['LEAD_ID'])
-    
-    time.sleep(5)
-    
-    leads = i.search('leads','first_name=xyzxyz', expect=3)
-    leads = i.search('leads','last_name=xyzxyz', expect=3)
-    leads = i.search('leads','email=xyzxyz@xyzxyz.com', expect=3)
-    leads = i.search('leads','tag=xyzxyz', expect=3)
-    leads = i.search('leads','city=xyzxyz', expect=3)
-    leads = i.search('leads','state=xyzxyz', expect=3)
-    leads = i.search('leads','postcode=xyzxyz', expect=3)
-    leads = i.search('leads','phone_number=123123123', expect=3)
-
-    for l in lead_ids:
-        i.delete('leads', l)
-        
-    notes = i.read('notes', top=1)
-    if len(notes) > 0:
-        note = notes[0]
-        title = note['TITLE']
-        owner_user_id = note['OWNER_USER_ID']
-        
-        notes = i.search('notes', 'title=' + str(string.replace(title,' ','+')))
-        notes = i.search('notes', 'owner_user_id=' + str(owner_user_id))
-            
-    opportunity_search = ['OPPORTUNITY_NAME','OPPORTUNITY_STATE','CATEGORY_ID','PIPELINE_ID',
-                          'STAGE_ID','RESPONSIBLE_USER_ID','OWNER_USER_ID','FORECAST_CLOSE_DATE',
-                          'ACTUAL_CLOSE_DATE']
-    
-    opportunities = i.read('opportunities', top=1)
-    if len(opportunities) > 0:
-        opportunity = opportunities[0]
-        parms = dict()
-        for s in opportunity_search:
-            parm = opportunity.get(s, None)
-            if parm is not None:
-                parms[s] = parm
-                
-    okeys = parms.keys()
-    for o in okeys:
-        opportunities = i.search('opportunities', string.lower(o) + '=' + string.replace(str(parms[o]),' ','+'))
-            
-    organisation_data = {
-        'ORGANISATION_NAME':'xyzxyz',
-        'TAGS':[
-            {'TAG_NAME':'xyzxyz'}
-            ],
-        'ADDRESSES':[
-            {
-                'ADDRESS_TYPE':'WORK',
-                'CITY':'xyzxyz',
-                'STATE':'xyzxyz',
-                'POSTCODE':'xyzxyz'
-            }
-        ],
-        'CONTACTINFOS':[
-            {
-                'TYPE':'PHONE',
-                'LABEL':'WORK',
-                'DETAIL':'123123123'
-            },
-            {
-                'TYPE':'EMAIL',
-                'LABEL':'HOME',
-                'DETAIL':'xyzxyz@xyzxyz.com'
-            },
-            {
-                'TYPE':'EMAILDOMAIN',
-                'DETAIL':'xyzxyz.com'
-            }
-        ]
-    }
-    
-    organisation_ids = list()
-    organisation_ids.append(i.create('organisations', organisation_data)['ORGANISATION_ID'])
-    organisation_ids.append(i.create('organisations', organisation_data)['ORGANISATION_ID'])
-    organisation_ids.append(i.create('organisations', organisation_data)['ORGANISATION_ID'])
-    
-    time.sleep(5)
-    
-    organisations = i.search('organisations','organisation_name=xyzxyz', expect=3)
-    organisations = i.search('organisations','email=xyzxyz@xyzxyz.com', expect=3)
-    organisations = i.search('organisations','email_domain=xyzxyz.com', expect=3)
-    organisations = i.search('organisations','tag=xyzxyz', expect=3)
-    organisations = i.search('organisations','phone_number=123123123', expect=3)
-    organisations = i.search('organisations','city=xyzxyz', expect=3)
-    organisations = i.search('organisations','state=xyzxyz', expect=3)
-    organisations = i.search('organisations','postcode=xyzxyz', expect=3)
-    
-    for o in organisation_ids:
-        i.delete('organisations',o)
-        
-    project_search = ['PROJECT_NAME','STATUS','CATEGORY_ID','PIPELINE_ID',
-                          'STAGE_ID','RESPONSIBLE_USER_ID','OWNER_USER_ID']
-    
-    projects = i.read('projects', top=1)
-    if len(projects) > 0:
-        project = projects[0]
-        parms = dict()
-        for s in project_search:
-            parm = project.get(s, None)
-            if parm is not None:
-                parms[s] = parm
-                
-    pkeys = parms.keys()
-    for p in pkeys:
-        projects = i.search('projects', string.lower(p) + '=' + string.replace(str(parms[p]),' ','+'))
-            
-    tasks_search = ['TITLE','STATUS','CATEGORY_ID']
-    tasks = i.read('tasks', top=1)
-    if len(tasks) > 0:
-        task = tasks[0]
-        parms = dict()
-        for s in tasks_search:
-            parm = task.get(s, None)
-            if parm is not None:
-                parms[s] = parm
-                
-    tkeys = parms.keys()
-    for t in tkeys:
-        tasks = i.search('tasks', string.lower(t) + '=' + string.replace(str(parms[t]),' ','+'))
-        
-    teams = i.read('teams', top=1)
-    if len(teams) > 0:
-        team_name = teams[0]['TEAM_NAME']
-        teams = i.search('teams', 'team_name=' + string.replace(str(team_name),' ','+'))
-    
-    users = i.read('users', top=1)
-    if len(users) > 0:
-        user = users[0]
-        first_name = user['FIRST_NAME']
-        last_name = user['LAST_NAME']
-        email = user['EMAIL_ADDRESS']
-        
-        users = i.search('users','first_name=' + string.replace(str(first_name),' ','+'))
-        users = i.search('users','last_name=' + string.replace(str(last_name),' ','+'))
-        users = i.search('users','email=' + str(email))
-    
     failures = list()
     
     print(str(i.tests_passed) + ' out of ' + str(i.tests_run) + ' passed')
