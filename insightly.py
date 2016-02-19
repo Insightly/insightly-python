@@ -18,8 +18,10 @@ import zlib
 
 try:
     import urllib.request as urllib2
+    from urllib.parse import urlencode
 except ImportError:
     import urllib2
+    from urllib import urlencode
     
 def lowercase(text):
     try:
@@ -372,7 +374,7 @@ class Insightly():
         r = 0
         timer = dict()
         
-        print 'TESTING ' + object_type + ' v' + self.version
+        print('TESTING ' + object_type + ' v' + self.version)
         
         while r < repetitions:
             # test read method
@@ -632,7 +634,7 @@ class Insightly():
                     records = self.search(object_type, 'updated_after_utc=' + updated_after_utc, top=top, skip=skip)
                 else:
                     records = self.search(object_type, '', top=top, skip=skip)
-                print 'Search top ' + str(top) + ' after ' + str(skip) + ' since ' + updated_after_utc + ' found ' + str(len(records))
+                print('Search top ' + str(top) + ' after ' + str(skip) + ' since ' + updated_after_utc + ' found ' + str(len(records)))
                 skip += top
                 for r in records:
                     if ids_only:
@@ -717,8 +719,7 @@ class Insightly():
                         if len(filterkeys) > 1:
                             raise Exception('Only one filter parameter is allowed per query at this time')
                         else:
-                            for fk in filterkeys:
-                                querystring += '&' + fk + '=' + str(filters[fk])
+                            querystring += '&' + urlencode(filters)
                 return querystring
             else:
                 return ''
