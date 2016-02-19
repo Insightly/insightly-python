@@ -372,7 +372,7 @@ class Insightly():
         r = 0
         timer = dict()
         
-        print 'TESTING ' + object_type + ' v' + self.version
+        print('TESTING ' + object_type + ' v' + self.version)
         
         while r < repetitions:
             # test read method
@@ -632,7 +632,7 @@ class Insightly():
                     records = self.search(object_type, 'updated_after_utc=' + updated_after_utc, top=top, skip=skip)
                 else:
                     records = self.search(object_type, '', top=top, skip=skip)
-                print 'Search top ' + str(top) + ' after ' + str(skip) + ' since ' + updated_after_utc + ' found ' + str(len(records))
+                print('Search top ' + str(top) + ' after ' + str(skip) + ' since ' + updated_after_utc + ' found ' + str(len(records)))
                 skip += top
                 for r in records:
                     if ids_only:
