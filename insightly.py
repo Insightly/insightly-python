@@ -18,8 +18,10 @@ import zlib
 
 try:
     import urllib.request as urllib2
+    from urllib.parse import urlencode
 except ImportError:
     import urllib2
+    from urllib import urlencode
     
 def lowercase(text):
     try:
@@ -717,8 +719,7 @@ class Insightly():
                         if len(filterkeys) > 1:
                             raise Exception('Only one filter parameter is allowed per query at this time')
                         else:
-                            for fk in filterkeys:
-                                querystring += '&' + fk + '=' + str(filters[fk])
+                            querystring += '&' + urlencode(filters)
                 return querystring
             else:
                 return ''
