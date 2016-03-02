@@ -6,6 +6,7 @@
 # Supports both Python v2.7 and 3.x
 # Brian McConnell <brian@insight.ly>
 #
+import os
 import base64
 import datetime
 import json
@@ -1096,7 +1097,7 @@ class Insightly():
         f = open(filename, 'rb')
         value = f.read()
         # TODO: probably need to clean the filename so it does not have illegal characters
-        url = '/' + object_type + '/' + str(id) + '/image/' + filename
+        url = '/' + object_type + '/' + str(id) + '/image/' + os.path.basename(filename)
         if test:
             self.tests_run += 1
             try:
