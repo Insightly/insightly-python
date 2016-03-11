@@ -308,10 +308,7 @@ class Insightly():
                     self.printline('FAIL: POST ' + url)
                     self.printline('    TRACE: ' + traceback.format_exc())
             else:
-                try:
-                    text = self.generateRequest(url, 'POST', data).decode()
-                except:
-                    text = self.generateRequest(url, 'POST', data)
+                text = self.generateRequest(url, 'POST', data)
                 data = json.loads(text)
                 return data
         else:
@@ -356,10 +353,7 @@ class Insightly():
                     self.printline('FAIL: POST ' + url)
                     self.printline('    TRACE: ' + traceback.format_exc())
             else:
-                try:
-                    text = self.generateRequest(url, 'POST', data).decode()
-                except:
-                    text = self.generateRequest(url, 'POST', data)
+                text = self.generateRequest(url, 'POST', data)
                 data = json.loads(text)
                 return data
         else:
