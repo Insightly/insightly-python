@@ -178,7 +178,10 @@ class Insightly():
         Raises an exception if login or call to getUsers() fails, most likely due to an invalid or missing API key
         """
         
-        self.log_file = open(str(version) + '.txt','w')
+        try:
+            self.log_file = open(str(version) + '.txt','w')
+        except:
+            self.log_file = None
         
         self.debug = debug
         if gzip:
@@ -201,7 +204,10 @@ class Insightly():
             else:
                 self.domain = 'https://api.insight.ly/v'
                 self.baseurl = self.domain + self.version
-        self.filehandle = open('testresults.txt','w')
+        try:
+            self.filehandle = open('testresults.txt','w')
+        except:
+            self.filehandle = None
         self.test_data = dict()
         self.test_failures = list()
         self.slow_endpoints = list()
@@ -673,12 +679,13 @@ class Insightly():
         return methods
     
     def log(self, success, url, method, duration):
-        f = self.log_file
-        if success:
-            success = 'PASS'
-        else:
-            success = 'FAIL'
-        f.write('"' + success + '","' + url + '","' + method + '","' + duration + '"\n')
+        if self.log_file is not None:
+            f = self.log_file
+            if success:
+                success = 'PASS'
+            else:
+                success = 'FAIL'
+            f.write('"' + success + '","' + url + '","' + method + '","' + duration + '"\n')
         
     def ODataQuery(self, querystring, top=None, skip=None, orderby=None, filters=None):
         """
@@ -752,9 +759,13 @@ class Insightly():
         if lowercase(text).count('fail') > 0:
             self.test_failures.append(text)
         if self.filehandle is None:
-            self.filehandle = open('testresults.txt', 'w')
-        if self.debug:        print(text)
-        self.filehandle.write(text + '\n')
+            try:
+                self.filehandle = open('testresults.txt', 'w')
+            except:
+                self.filehandle = None
+        if self.filehandle is not None:
+            if self.debug:        print(text)
+            self.filehandle.write(text + '\n')
         
     def read(self, object_type, id = None, sub_type=None, top=None, skip=None, orderby=None, filters=None):
         """
