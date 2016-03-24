@@ -623,18 +623,20 @@ class Insightly():
         Iterates through the entire recordset for an object type, optionally filtered by updated_after_utc,
         returns a list of object IDs if ids_only is True
         """
-        if self.version == 'mobile' or self.version == '2.1':
+        if self.version == 'mobile' or self.version == '2.2':
             done = False
             skip = 0
             top = 100
             results = list()
-            updated_after_utc = string.replace(updated_after_utc,' ','+')
+            if updated_after_utc is not None:
+                updated_after_utc = string.replace(updated_after_utc,' ','+')
             while not done:
                 if updated_after_utc is not None:
                     records = self.search(object_type, 'updated_after_utc=' + updated_after_utc, top=top, skip=skip)
+                    print('Search top ' + str(top) + ' after ' + str(skip) + ' since ' + updated_after_utc + ' found ' + str(len(records)))
                 else:
                     records = self.search(object_type, '', top=top, skip=skip)
-                print('Search top ' + str(top) + ' after ' + str(skip) + ' since ' + updated_after_utc + ' found ' + str(len(records)))
+                    print('Search top ' + str(top) + ' after ' + str(skip) + ' found ' + str(len(records)))
                 skip += top
                 for r in records:
                     if ids_only:
