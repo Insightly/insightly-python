@@ -214,7 +214,7 @@ class Insightly():
         if len(apikey) < 1:
             try:
                 f = open('apikey.txt', 'r')
-                apikey = f.read()
+                apikey = f.read().rstrip()
                 if self.debug:        print('API Key read from disk as ' + apikey)
             except:
                 raise Exception('No API provided on instantiation, and apikey.txt file not found in project directory.')
