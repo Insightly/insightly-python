@@ -13,12 +13,16 @@ The library takes care of authentication and low level communication, so you can
 
 The library has been tested with both Python versions 2.7 and 3.x
 
-COMING SOON : OFFLINE OPERATION
+NEW : OFFLINE OPERATION
 ===============================
 
-We are testing an update to the library that makes offline operation easy. With this, the library creates a local snapshot
-of your Insightly data, and from there can do all data processing locally. This will enable customers who want to perform
-complex queries, reporting, etc, to easily do so. 
+You can now use the Python SDK in offline mode, example below.
+
+i = Insightly(apikey='foo', offline=True, refresh=True)
+for contact in i.contacts:
+  do_something_with(contact)
+  
+When running in offline mode, the client makes a copy of your system data in local memory and local disk. This will be helpful for people who are building data processing and reporting applications, or who need to do complex queries against their Insightly data. 
 
 MAJOR CHANGES IN VERSION 2.2
 ============================
