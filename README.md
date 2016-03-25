@@ -52,11 +52,13 @@ USAGE
 
 First, you'll need to instantiate the Insightly class, which you do with the following statement:
 
-i = Insightly(apikey='yourapikey',version='2.1|2.2',test=False)
+i = Insightly(apikey='yourapikey',version='2.1|2.2',debug=True|False,offline=True|False,refresh=True|False)
 
 Note, if you omit the apikey, it will look for it in a text file named apikey.txt in the working directory. If you omit the version number it will default to v2.2. Use the test mode to log success/fail events to the console and to testresults.txt
 
 Once you have instantiated the Insightly class, you can create, read, update and delete Insightly objects using the create, delete, read and update methods.
+
+To enable offline access, set offline to True to read in data from local disk, optionally also set refresh to True to make a snapshot off all data currently on your Insightly instance (the local disk copies will be updated also). 
 
 FETCHING AND SEARCHING INSIGHTLY OBJECTS
 ========================================
