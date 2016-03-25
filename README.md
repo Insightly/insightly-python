@@ -19,7 +19,9 @@ NEW : OFFLINE OPERATION
 You can now use the Python SDK in offline mode, example below.
 
 i = Insightly(apikey='foo', offline=True, refresh=True)
+
 for contact in i.contacts:
+
   do_something_with(contact)
   
 When running in offline mode, the client makes a copy of your system data in local memory and local disk. This will be helpful for people who are building data processing and reporting applications, or who need to do complex queries against their Insightly data. 
