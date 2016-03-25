@@ -757,6 +757,12 @@ class Insightly():
                 return querystring
             else:
                 return ''
+
+    def ownerinfo(self):
+        """
+        :return: dictionary of information about the account owner
+        """
+        return {'name': self.owner_name, 'email': self.owner_email, 'id': self.owner_id}
         
     def printline(self, text):
         if lowercase(text).count('fail') > 0:
