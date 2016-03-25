@@ -13,6 +13,13 @@ The library takes care of authentication and low level communication, so you can
 
 The library has been tested with both Python versions 2.7 and 3.x
 
+COMING SOON : OFFLINE OPERATION
+===============================
+
+We are testing an update to the library that makes offline operation easy. With this, the library creates a local snapshot
+of your Insightly data, and from there can do all data processing locally. This will enable customers who want to perform
+complex queries, reporting, etc, to easily do so. 
+
 MAJOR CHANGES IN VERSION 2.2
 ============================
 
