@@ -166,7 +166,7 @@ class Insightly():
     as you are probably just missing a required field or using an invalid element ID when referring to something such as a link to a contact.
     
     """
-    def __init__(self, apikey='', version='2.2', dev=None, gzip=True, debug=True, test=False):
+    def __init__(self, apikey='', version='2.2', dev=None, gzip=True, debug=True, test=False, offline=False, refresh=False):
         
         """
         Instantiates the class, logs in, and fetches the current list of users. Also identifies the account owner's user ID, which
@@ -176,12 +176,20 @@ class Insightly():
         if the server is ignoring compression requests (this reduces payload size by about 10:1 when active)
 
         Raises an exception if login or call to getUsers() fails, most likely due to an invalid or missing API key
+        
+        To enable offline data processing, set offline=True, and if you want to update the local data store, set refresh=True
         """
         
-        try:
-            self.log_file = open(str(version) + '.txt','w')
-        except:
-            self.log_file = None
+        self.log_file = open(str(version) + '.txt','w')
+        
+        self.contacts = list()
+        self.emails = list()
+        self.events = list()
+        self.leads = list()
+        self.organisations = list()
+        self.opportunities = list()
+        self.projects = list()
+        self.tasks = list()
         
         self.debug = debug
         if gzip:
@@ -204,10 +212,7 @@ class Insightly():
             else:
                 self.domain = 'https://api.insight.ly/v'
                 self.baseurl = self.domain + self.version
-        try:
-            self.filehandle = open('testresults.txt','w')
-        except:
-            self.filehandle = None
+        self.filehandle = open('testresults.txt','w')
         self.test_data = dict()
         self.test_failures = list()
         self.slow_endpoints = list()
@@ -237,6 +242,9 @@ class Insightly():
                     self.owner_name = u.get('FIRST_NAME','') + ' ' + u.get('LAST_NAME','')
                     if self.debug:        print('The account owner is ' + self.owner_name + ' [' + str(self.owner_id) + '] at ' + self.owner_email)
                     break
+            if offline and self.version == '2.2':
+                self.sync(refresh=refresh)
+                # add more object types once contacts are debugged
         else:
             raise Exception('Python library only supports v2.1 or v2.2 APIs. We recommend using v2.2.')
         
@@ -619,25 +627,24 @@ class Insightly():
                 results = json.loads(text.decode('utf-8'))
             return results
         
-    def get_all(self, object_type, updated_after_utc=None, ids_only=True):
+    def get_all(self, object_type, updated_after_utc='', ids_only=True):
         """
         Iterates through the entire recordset for an object type, optionally filtered by updated_after_utc,
         returns a list of object IDs if ids_only is True
         """
-        if self.version == 'mobile' or self.version == '2.2':
+        if self.version == '2.2':
             done = False
             skip = 0
-            top = 100
+            top = 500
             results = list()
-            if updated_after_utc is not None:
-                updated_after_utc = string.replace(updated_after_utc,' ','+')
+            updated_after_utc = string.replace(updated_after_utc,' ','+')
             while not done:
-                if updated_after_utc is not None:
+                if updated_after_utc != '':
                     records = self.search(object_type, 'updated_after_utc=' + updated_after_utc, top=top, skip=skip)
-                    print('Search top ' + str(top) + ' after ' + str(skip) + ' since ' + updated_after_utc + ' found ' + str(len(records)))
                 else:
                     records = self.search(object_type, '', top=top, skip=skip)
-                    print('Search top ' + str(top) + ' after ' + str(skip) + ' found ' + str(len(records)))
+                if self.debug:
+                    print('Search top ' + str(top) + ' ' + object_type + ' after ' + str(skip) + ' since ' + updated_after_utc + ' found ' + str(len(records)))
                 skip += top
                 for r in records:
                     if ids_only:
@@ -681,14 +688,31 @@ class Insightly():
         methods = [method for method in dir(self) if callable(getattr(self, method))]
         return methods
     
+    def load(self, object_type, refresh=False):
+        """
+        Loads objects into memory, either from a local file (JSON) or reloads all objects from
+        the Insightly server, to allow offline processing.
+        
+        # TODO: add logic to do partial updates using the most recent date_updated_utc timestamp
+        """
+        if refresh:
+            records = self.get_all(object_type, ids_only = False)
+            f = open(object_type + '.json', 'w')
+            f.write(json.dumps(records))
+            f.close()
+        else:
+            f = open(object_type + '.json', 'r')
+            records = json.loads(f.read())
+            f.close()
+        return records
+    
     def log(self, success, url, method, duration):
-        if self.log_file is not None:
-            f = self.log_file
-            if success:
-                success = 'PASS'
-            else:
-                success = 'FAIL'
-            f.write('"' + success + '","' + url + '","' + method + '","' + duration + '"\n')
+        f = self.log_file
+        if success:
+            success = 'PASS'
+        else:
+            success = 'FAIL'
+        f.write('"' + success + '","' + url + '","' + method + '","' + duration + '"\n')
         
     def ODataQuery(self, querystring, top=None, skip=None, orderby=None, filters=None):
         """
@@ -758,23 +782,118 @@ class Insightly():
             else:
                 return ''
 
+    def offline_query(self, object_type, filters):
+        """
+        This function is used to query the offline data store (if you instantiate the Insightly class with offline=True, it will
+        download a copy of all Insightly objects and cache them in memory)
+        
+        It is called as follows:
+        offline_query(object_type, filters)
+        
+        Example:
+        
+        i = Insightly(offline=True)
+        records = i.offline_query('contacts',[('FIRST_NAME','contains','foo'),('LAST_NAME','contains','bar')])
+        for r in records:
+            do_something_with(r)
+        
+        Note:
+        
+        Filter expressions are tuples in the form (parm, operator, value)
+        
+        The following operators are recognized:
+        
+        = : parm=value
+        contains : parm contains value
+        < : less than
+        > : greater than
+        
+        You can pass in a single filter, or a list of multiple filters
+        
+        You can also search to see if any field in a record contains a string with the filter expression:
+        
+        ('any','contains','foo')
+        
+        """
+        if type(object_type) is str:
+            object_type = string.lower(object_type)
+        else:
+            raise Exception('parameter object_type must be a string')
+        if type(filters) is tuple:
+                if len(filters) == 3:
+                    filters = [filters]
+                else:
+                    raise Exception('filters tuple length must be 3, expected (parm, operator, value)')
+        elif type(filters) is list:
+            for f in filters:
+                if type(f) is tuple:
+                    if len(f) != 3:
+                        raise Exception('all filter expressions must be a tuple in (parm, operator, value) form')
+                else:
+                    raise Exception('all filter expressions must be a tuple in (parm, operator, value) form')
+        else:
+            raise Exception('filters should be passed in either as a tuple in (parm, operator, value) form, or list of tuples')
+        
+        if object_type == 'contacts' or object_type == 'contact':
+            data = self.contacts
+        elif object_type == 'events' or object_type == 'event':
+            data = self.events
+        elif object_type == 'leads' or object_type == 'lead':
+            data = self.leads
+        elif object_type == 'organisations' or object_type == 'organisation' or object_type == 'organizations' or object_type == 'organization':
+            data = self.organisations
+        elif object_type == 'opportunities' or object_type == 'opportunity':
+            data = self.opportunities
+        elif object_type == 'projects' or object_type == 'project':
+            data = self.projects
+        elif object_type == 'tasks' or object_type == 'task':
+            data = self.tasks
+        else:
+            raise Exception('Invalid object type')
+        
+        results = list()
+        for d in data:
+            matches = 0
+            for f in filters:
+                parm = f[0]
+                operator = f[1]
+                value = f[2]
+                if string.lower(parm) == 'any':
+                    field = str(d)
+                else:
+                    field = d.get(parm, None)
+                if field is not None:
+                    if operator == 'contains':
+                        if string.count(string.lower(field), string.lower(value)) > 0:
+                            matches +=1
+                    elif operator == '=':
+                        if string.lower(field) == string.lower(value):
+                            matches += 1
+                    elif operator == '>':
+                        if string.lower(field) > string.lower(value):
+                            matches += 1
+                    elif operator == '<':
+                        if string.lower(field) > string.lower(value):
+                            matches += 1
+                    else:
+                        pass
+            if matches == len(filters):
+                results.append(d)
+        return results
+        
     def ownerinfo(self):
         """
         :return: dictionary of information about the account owner
         """
         return {'name': self.owner_name, 'email': self.owner_email, 'id': self.owner_id}
-        
+            
     def printline(self, text):
         if lowercase(text).count('fail') > 0:
             self.test_failures.append(text)
         if self.filehandle is None:
-            try:
-                self.filehandle = open('testresults.txt', 'w')
-            except:
-                self.filehandle = None
-        if self.filehandle is not None:
-            if self.debug:        print(text)
-            self.filehandle.write(text + '\n')
+            self.filehandle = open('testresults.txt', 'w')
+        if self.debug:        print(text)
+        self.filehandle.write(text + '\n')
         
     def read(self, object_type, id = None, sub_type=None, top=None, skip=None, orderby=None, filters=None):
         """
@@ -984,6 +1103,28 @@ class Insightly():
             except:
                 results = self.dictToList(json.loads(text.decode('utf-8')))
             return results
+        
+    def sync(self, refresh=False):
+        """
+        Does a one-way sync (from Insightly to locale file system) to update the local object store.
+        This function creates a JSON file for each object type, which is then used for local filter
+        and query operations.
+        
+        TODO: add incremental update using last update timestamp, but for now just load everything
+        """
+        #
+        # First sync contacts
+        #
+        
+        self.contacts = self.load('contacts', refresh)
+        self.events = self.load('events', refresh)
+        self.leads = self.load('leads', refresh)
+        self.organisations = self.load('organisations', refresh)
+        self.opportunities = self.load('opportunities', refresh)
+        self.projects = self.load('projects', refresh)
+        self.tasks = self.load('tasks', refresh)
+        
+        return True
         
     def update(self, object_type, object_graph, id = None, sub_type = None):
         """
