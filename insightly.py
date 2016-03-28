@@ -10,8 +10,10 @@ import base64
 import datetime
 import json
 import mimetypes
+import os
 import string
 import sys
+import time
 import traceback
 import urllib
 import zlib
@@ -182,14 +184,34 @@ class Insightly():
         
         self.log_file = open(str(version) + '.txt','w')
         
+        #
+        # Define properties to store locally cached objects, when offline mode is enabled
+        #
+        
+        self.activity_sets = list()
         self.contacts = list()
+        self.countries = list()
+        self.currencies = list()
+        self.custom_fields = list()
         self.emails = list()
         self.events = list()
+        self.file_categories = list()
         self.leads = list()
+        self.lead_sources = list()
+        self.lead_statuses = list()
+        self.notes = list()
         self.organisations = list()
         self.opportunities = list()
+        self.opportunity_categories = list()
+        self.opportunity_state_reasons = list()
+        self.pipelines = list()
+        self.pipeline_stages = list()
         self.projects = list()
+        self.project_categories = list()
+        self.relationships = list()
         self.tasks = list()
+        self.task_categories = list()
+        self.teams = list()
         
         self.debug = debug
         if gzip:
@@ -642,7 +664,7 @@ class Insightly():
                 if updated_after_utc != '':
                     records = self.search(object_type, 'updated_after_utc=' + updated_after_utc, top=top, skip=skip)
                 else:
-                    records = self.search(object_type, '', top=top, skip=skip)
+                    records = self.read(object_type, '', top=top, skip=skip)
                 if self.debug:
                     print('Search top ' + str(top) + ' ' + object_type + ' after ' + str(skip) + ' since ' + updated_after_utc + ' found ' + str(len(records)))
                 skip += top
@@ -697,7 +719,11 @@ class Insightly():
         """
         if refresh:
             records = self.get_all(object_type, ids_only = False)
-            f = open(object_type + '.json', 'w')
+            try:
+                os.mkdir('insightly_data')
+            except:
+                pass
+            f = open('insightly_data/' + object_type + '.json', 'w')
             f.write(json.dumps(records))
             f.close()
         else:
@@ -1104,6 +1130,34 @@ class Insightly():
                 results = self.dictToList(json.loads(text.decode('utf-8')))
             return results
         
+    def stats(self):
+        """
+        Returns current record counts (for offline mode)
+        """
+        return dict(
+            activity_sets = len(self.activity_sets),
+            contacts = len(self.contacts),
+            emails = len(self.emails),
+            events = len(self.events),
+            file_categories = len(self.file_categories),
+            leads = len(self.leads),
+            lead_sources = len(self.lead_sources),
+            lead_statuses = len(self.lead_statuses),
+            notes = len(self.notes),
+            organisations = len(self.organisations),
+            opportunities = len(self.opportunities),
+            opportunity_categories = len(self.opportunity_categories),
+            opportunity_state_reasons = len(self.opportunity_state_reasons),
+            pipelines = len(self.pipelines),
+            pipeline_stages = len(self.pipeline_stages),
+            projects = len(self.projects),
+            project_categories = len(self.project_categories),
+            relationships = len(self.relationships),
+            tasks = len(self.tasks),
+            task_categories = len(self.task_categories),
+            teams = len(self.teams),
+        )
+        
     def sync(self, refresh=False):
         """
         Does a one-way sync (from Insightly to locale file system) to update the local object store.
@@ -1116,13 +1170,27 @@ class Insightly():
         # First sync contacts
         #
         
+        self.activity_sets = self.load('activitysets', refresh)
         self.contacts = self.load('contacts', refresh)
+        self.emails = self.load('emails', refresh)
         self.events = self.load('events', refresh)
+        self.file_categories = self.load('filecategories', refresh)
         self.leads = self.load('leads', refresh)
-        self.organisations = self.load('organisations', refresh)
-        self.opportunities = self.load('opportunities', refresh)
-        self.projects = self.load('projects', refresh)
+        self.lead_sources = self.load('leadsources', refresh)
+        self.lead_statuses = self.load('leadstatuses', refresh)
+        self.notes = self.load('notes', refresh)
+        self.organisations = self.load('organisations')
+        self.opportunities = self.load('opportunities')
+        self.opportunity_categories = self.load('opportunitycategories', refresh)
+        self.opportunity_state_reasons = self.load('opportunitystatereasons', refresh)
+        self.pipelines = self.load('pipelines', refresh)
+        self.pipeline_stages = self.load('pipelinestages', refresh)
+        self.projects = self.load('projects')
+        self.project_categories = self.load('projectcategories', refresh)
+        self.relationships = self.load('relationships', refresh)
         self.tasks = self.load('tasks', refresh)
+        self.task_categories = self.load('taskcategories', refresh)
+        self.teams = self.load('teams', refresh)
         
         return True
         
