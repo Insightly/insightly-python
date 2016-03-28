@@ -219,7 +219,8 @@ class Insightly():
         if len(apikey) < 1:
             try:
                 f = open('apikey.txt', 'r')
-                apikey = f.read()
+                apikey = f.read().rstrip()
+                f.close()
                 if self.debug:        print('API Key read from disk as ' + apikey)
             except:
                 raise Exception('No API provided on instantiation, and apikey.txt file not found in project directory.')
@@ -780,7 +781,7 @@ class Insightly():
                 return querystring
             else:
                 return ''
-            
+
     def offline_query(self, object_type, filters):
         """
         This function is used to query the offline data store (if you instantiate the Insightly class with offline=True, it will
@@ -880,6 +881,12 @@ class Insightly():
                 results.append(d)
         return results
         
+    def ownerinfo(self):
+        """
+        :return: dictionary of information about the account owner
+        """
+        return {'name': self.owner_name, 'email': self.owner_email, 'id': self.owner_id}
+            
     def printline(self, text):
         if lowercase(text).count('fail') > 0:
             self.test_failures.append(text)
