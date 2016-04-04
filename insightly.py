@@ -263,6 +263,7 @@ class Insightly():
                     self.owner_email = u.get('EMAIL_ADDRESS','')
                     self.owner_id = u.get('USER_ID', None)
                     self.owner_name = u.get('FIRST_NAME','') + ' ' + u.get('LAST_NAME','')
+                    self.contact_id = u.get('CONTACT_ID', None)
                     if self.debug:        print('The account owner is ' + self.owner_name + ' [' + str(self.owner_id) + '] at ' + self.owner_email)
                     break
             if offline and self.version == '2.2':
@@ -912,7 +913,7 @@ class Insightly():
         """
         :return: dictionary of information about the account owner
         """
-        return {'name': self.owner_name, 'email': self.owner_email, 'id': self.owner_id}
+        return {'name': self.owner_name, 'email': self.owner_email, 'contact_id': self.contact_id}
             
     def printline(self, text):
         if lowercase(text).count('fail') > 0:
