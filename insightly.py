@@ -169,7 +169,7 @@ class Insightly():
     as you are probably just missing a required field or using an invalid element ID when referring to something such as a link to a contact.
     
     """
-    def __init__(self, apikey='', version='2.2', dev=None, gzip=True, debug=True, test=False, offline=False, refresh=False):
+    def __init__(self, apikey='', version='2.2', dev=None, gzip=True, debug=False, test=False, offline=False, refresh=False):
         
         """
         Instantiates the class, logs in, and fetches the current list of users. Also identifies the account owner's user ID, which
@@ -183,8 +183,11 @@ class Insightly():
         To enable offline data processing, set offline=True, and if you want to update the local data store, set refresh=True
         """
         
-        self.log_file = open(str(version) + '.txt','w')
-        
+        if True == debug or True == test:
+            self.log_file = open(str(version) + '.txt','w')
+        else:
+            self.log_file = None
+
         #
         # Define properties to store locally cached objects, when offline mode is enabled
         #
@@ -235,7 +238,10 @@ class Insightly():
             else:
                 self.domain = 'https://api.insight.ly/v'
                 self.baseurl = self.domain + self.version
-        self.filehandle = open('testresults.txt','w')
+        if True == test:
+            self.filehandle = open('testresults.txt','w')
+        else:
+            self.filehandle = None
         self.test_data = dict()
         self.test_failures = list()
         self.slow_endpoints = list()
@@ -737,12 +743,13 @@ class Insightly():
         return records
     
     def log(self, success, url, method, duration):
-        f = self.log_file
-        if success:
-            success = 'PASS'
-        else:
-            success = 'FAIL'
-        f.write('"' + success + '","' + url + '","' + method + '","' + duration + '"\n')
+        if self.log_file is not None:
+            f = self.log_file
+            if success:
+                success = 'PASS'
+            else:
+                success = 'FAIL'
+            f.write('"' + success + '","' + url + '","' + method + '","' + duration + '"\n')
         
     def ODataQuery(self, querystring, top=None, skip=None, orderby=None, filters=None):
         """
@@ -925,10 +932,8 @@ class Insightly():
     def printline(self, text):
         if lowercase(text).count('fail') > 0:
             self.test_failures.append(text)
-        if self.filehandle is None:
-            self.filehandle = open('testresults.txt', 'w')
         if self.debug:        print(text)
-        self.filehandle.write(text + '\n')
+        if self.test:         self.filehandle.write(text + '\n')
         
     def read(self, object_type, id = None, sub_type=None, top=None, skip=None, orderby=None, filters=None):
         """
