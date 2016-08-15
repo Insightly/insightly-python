@@ -555,7 +555,7 @@ class Insightly():
                 request.add_header(h, headers[h])
         # open the URL, if an error code is returned it should raise an exception
         if method == 'PUT' or method == 'POST':
-            result = urllib2.urlopen(request, data)
+            result = urllib2.urlopen(request, data.encode("utf-8"))
         else:
             result = urllib2.urlopen(request)
         text = result.read()
