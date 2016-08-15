@@ -6,12 +6,15 @@
 # Supports both Python v2.7 and 3.x
 # Brian McConnell <brian@insight.ly>
 #
+import os
 import base64
 import datetime
 import json
 import mimetypes
+import os
 import string
 import sys
+import time
 import traceback
 import urllib
 import zlib
@@ -166,7 +169,7 @@ class Insightly():
     as you are probably just missing a required field or using an invalid element ID when referring to something such as a link to a contact.
     
     """
-    def __init__(self, apikey='', version='2.2', dev=None, gzip=True, debug=True, test=False):
+    def __init__(self, apikey='', version='2.2', dev=None, gzip=True, debug=False, test=False, offline=False, refresh=False):
         
         """
         Instantiates the class, logs in, and fetches the current list of users. Also identifies the account owner's user ID, which
@@ -176,9 +179,43 @@ class Insightly():
         if the server is ignoring compression requests (this reduces payload size by about 10:1 when active)
 
         Raises an exception if login or call to getUsers() fails, most likely due to an invalid or missing API key
+        
+        To enable offline data processing, set offline=True, and if you want to update the local data store, set refresh=True
         """
         
-        self.log_file = open(str(version) + '.txt','w')
+        if True == debug or True == test:
+            self.log_file = open(str(version) + '.txt','w')
+        else:
+            self.log_file = None
+
+        #
+        # Define properties to store locally cached objects, when offline mode is enabled
+        #
+        
+        self.activity_sets = list()
+        self.contacts = list()
+        self.countries = list()
+        self.currencies = list()
+        self.custom_fields = list()
+        self.emails = list()
+        self.events = list()
+        self.file_categories = list()
+        self.leads = list()
+        self.lead_sources = list()
+        self.lead_statuses = list()
+        self.notes = list()
+        self.organisations = list()
+        self.opportunities = list()
+        self.opportunity_categories = list()
+        self.opportunity_state_reasons = list()
+        self.pipelines = list()
+        self.pipeline_stages = list()
+        self.projects = list()
+        self.project_categories = list()
+        self.relationships = list()
+        self.tasks = list()
+        self.task_categories = list()
+        self.teams = list()
         
         self.debug = debug
         if gzip:
@@ -201,14 +238,18 @@ class Insightly():
             else:
                 self.domain = 'https://api.insight.ly/v'
                 self.baseurl = self.domain + self.version
-        self.filehandle = open('testresults.txt','w')
+        if True == test:
+            self.filehandle = open('testresults.txt','w')
+        else:
+            self.filehandle = None
         self.test_data = dict()
         self.test_failures = list()
         self.slow_endpoints = list()
         if len(apikey) < 1:
             try:
                 f = open('apikey.txt', 'r')
-                apikey = f.read()
+                apikey = f.read().rstrip()
+                f.close()
                 if self.debug:        print('API Key read from disk as ' + apikey)
             except:
                 raise Exception('No API provided on instantiation, and apikey.txt file not found in project directory.')
@@ -230,6 +271,9 @@ class Insightly():
                     self.owner_name = u.get('FIRST_NAME','') + ' ' + u.get('LAST_NAME','')
                     if self.debug:        print('The account owner is ' + self.owner_name + ' [' + str(self.owner_id) + '] at ' + self.owner_email)
                     break
+            if offline and self.version == '2.2':
+                self.sync(refresh=refresh)
+                # add more object types once contacts are debugged
         else:
             raise Exception('Python library only supports v2.1 or v2.2 APIs. We recommend using v2.2.')
         
@@ -308,10 +352,7 @@ class Insightly():
                     self.printline('FAIL: POST ' + url)
                     self.printline('    TRACE: ' + traceback.format_exc())
             else:
-                try:
-                    text = self.generateRequest(url, 'POST', data).decode()
-                except:
-                    text = self.generateRequest(url, 'POST', data)
+                text = self.generateRequest(url, 'POST', data)
                 data = json.loads(text)
                 return data
         else:
@@ -356,10 +397,7 @@ class Insightly():
                     self.printline('FAIL: POST ' + url)
                     self.printline('    TRACE: ' + traceback.format_exc())
             else:
-                try:
-                    text = self.generateRequest(url, 'POST', data).decode()
-                except:
-                    text = self.generateRequest(url, 'POST', data)
+                text = self.generateRequest(url, 'POST', data)
                 data = json.loads(text)
                 return data
         else:
@@ -618,23 +656,24 @@ class Insightly():
                 results = json.loads(text.decode('utf-8'))
             return results
         
-    def get_all(self, object_type, updated_after_utc=None, ids_only=True):
+    def get_all(self, object_type, updated_after_utc='', ids_only=True):
         """
         Iterates through the entire recordset for an object type, optionally filtered by updated_after_utc,
         returns a list of object IDs if ids_only is True
         """
-        if self.version == 'mobile' or self.version == '2.1':
+        if self.version == '2.2':
             done = False
             skip = 0
-            top = 100
+            top = 500
             results = list()
             updated_after_utc = string.replace(updated_after_utc,' ','+')
             while not done:
-                if updated_after_utc is not None:
+                if updated_after_utc != '':
                     records = self.search(object_type, 'updated_after_utc=' + updated_after_utc, top=top, skip=skip)
                 else:
-                    records = self.search(object_type, '', top=top, skip=skip)
-                print('Search top ' + str(top) + ' after ' + str(skip) + ' since ' + updated_after_utc + ' found ' + str(len(records)))
+                    records = self.read(object_type, '', top=top, skip=skip)
+                if self.debug:
+                    print('Search top ' + str(top) + ' ' + object_type + ' after ' + str(skip) + ' since ' + updated_after_utc + ' found ' + str(len(records)))
                 skip += top
                 for r in records:
                     if ids_only:
@@ -678,13 +717,36 @@ class Insightly():
         methods = [method for method in dir(self) if callable(getattr(self, method))]
         return methods
     
-    def log(self, success, url, method, duration):
-        f = self.log_file
-        if success:
-            success = 'PASS'
+    def load(self, object_type, refresh=False):
+        """
+        Loads objects into memory, either from a local file (JSON) or reloads all objects from
+        the Insightly server, to allow offline processing.
+        
+        # TODO: add logic to do partial updates using the most recent date_updated_utc timestamp
+        """
+        if refresh:
+            records = self.get_all(object_type, ids_only = False)
+            try:
+                os.mkdir('insightly_data')
+            except:
+                pass
+            f = open('insightly_data/' + object_type + '.json', 'w')
+            f.write(json.dumps(records))
+            f.close()
         else:
-            success = 'FAIL'
-        f.write('"' + success + '","' + url + '","' + method + '","' + duration + '"\n')
+            f = open(object_type + '.json', 'r')
+            records = json.loads(f.read())
+            f.close()
+        return records
+    
+    def log(self, success, url, method, duration):
+        if self.log_file is not None:
+            f = self.log_file
+            if success:
+                success = 'PASS'
+            else:
+                success = 'FAIL'
+            f.write('"' + success + '","' + url + '","' + method + '","' + duration + '"\n')
         
     def ODataQuery(self, querystring, top=None, skip=None, orderby=None, filters=None):
         """
@@ -753,14 +815,117 @@ class Insightly():
                 return querystring
             else:
                 return ''
+
+    def offline_query(self, object_type, filters):
+        """
+        This function is used to query the offline data store (if you instantiate the Insightly class with offline=True, it will
+        download a copy of all Insightly objects and cache them in memory)
         
+        It is called as follows:
+        offline_query(object_type, filters)
+        
+        Example:
+        
+        i = Insightly(offline=True)
+        records = i.offline_query('contacts',[('FIRST_NAME','contains','foo'),('LAST_NAME','contains','bar')])
+        for r in records:
+            do_something_with(r)
+        
+        Note:
+        
+        Filter expressions are tuples in the form (parm, operator, value)
+        
+        The following operators are recognized:
+        
+        = : parm=value
+        contains : parm contains value
+        < : less than
+        > : greater than
+        
+        You can pass in a single filter, or a list of multiple filters
+        
+        You can also search to see if any field in a record contains a string with the filter expression:
+        
+        ('any','contains','foo')
+        
+        """
+        if type(object_type) is str:
+            object_type = string.lower(object_type)
+        else:
+            raise Exception('parameter object_type must be a string')
+        if type(filters) is tuple:
+                if len(filters) == 3:
+                    filters = [filters]
+                else:
+                    raise Exception('filters tuple length must be 3, expected (parm, operator, value)')
+        elif type(filters) is list:
+            for f in filters:
+                if type(f) is tuple:
+                    if len(f) != 3:
+                        raise Exception('all filter expressions must be a tuple in (parm, operator, value) form')
+                else:
+                    raise Exception('all filter expressions must be a tuple in (parm, operator, value) form')
+        else:
+            raise Exception('filters should be passed in either as a tuple in (parm, operator, value) form, or list of tuples')
+        
+        if object_type == 'contacts' or object_type == 'contact':
+            data = self.contacts
+        elif object_type == 'events' or object_type == 'event':
+            data = self.events
+        elif object_type == 'leads' or object_type == 'lead':
+            data = self.leads
+        elif object_type == 'organisations' or object_type == 'organisation' or object_type == 'organizations' or object_type == 'organization':
+            data = self.organisations
+        elif object_type == 'opportunities' or object_type == 'opportunity':
+            data = self.opportunities
+        elif object_type == 'projects' or object_type == 'project':
+            data = self.projects
+        elif object_type == 'tasks' or object_type == 'task':
+            data = self.tasks
+        else:
+            raise Exception('Invalid object type')
+        
+        results = list()
+        for d in data:
+            matches = 0
+            for f in filters:
+                parm = f[0]
+                operator = f[1]
+                value = f[2]
+                if string.lower(parm) == 'any':
+                    field = str(d)
+                else:
+                    field = d.get(parm, None)
+                if field is not None:
+                    if operator == 'contains':
+                        if string.count(string.lower(field), string.lower(value)) > 0:
+                            matches +=1
+                    elif operator == '=':
+                        if string.lower(field) == string.lower(value):
+                            matches += 1
+                    elif operator == '>':
+                        if string.lower(field) > string.lower(value):
+                            matches += 1
+                    elif operator == '<':
+                        if string.lower(field) > string.lower(value):
+                            matches += 1
+                    else:
+                        pass
+            if matches == len(filters):
+                results.append(d)
+        return results
+        
+    def ownerinfo(self):
+        """
+        :return: dictionary of information about the account owner
+        """
+        return {'name': self.owner_name, 'email': self.owner_email, 'id': self.owner_id}
+            
     def printline(self, text):
         if lowercase(text).count('fail') > 0:
             self.test_failures.append(text)
-        if self.filehandle is None:
-            self.filehandle = open('testresults.txt', 'w')
         if self.debug:        print(text)
-        self.filehandle.write(text + '\n')
+        if self.test:         self.filehandle.write(text + '\n')
         
     def read(self, object_type, id = None, sub_type=None, top=None, skip=None, orderby=None, filters=None):
         """
@@ -971,6 +1136,70 @@ class Insightly():
                 results = self.dictToList(json.loads(text.decode('utf-8')))
             return results
         
+    def stats(self):
+        """
+        Returns current record counts (for offline mode)
+        """
+        return dict(
+            activity_sets = len(self.activity_sets),
+            contacts = len(self.contacts),
+            emails = len(self.emails),
+            events = len(self.events),
+            file_categories = len(self.file_categories),
+            leads = len(self.leads),
+            lead_sources = len(self.lead_sources),
+            lead_statuses = len(self.lead_statuses),
+            notes = len(self.notes),
+            organisations = len(self.organisations),
+            opportunities = len(self.opportunities),
+            opportunity_categories = len(self.opportunity_categories),
+            opportunity_state_reasons = len(self.opportunity_state_reasons),
+            pipelines = len(self.pipelines),
+            pipeline_stages = len(self.pipeline_stages),
+            projects = len(self.projects),
+            project_categories = len(self.project_categories),
+            relationships = len(self.relationships),
+            tasks = len(self.tasks),
+            task_categories = len(self.task_categories),
+            teams = len(self.teams),
+        )
+        
+    def sync(self, refresh=False):
+        """
+        Does a one-way sync (from Insightly to locale file system) to update the local object store.
+        This function creates a JSON file for each object type, which is then used for local filter
+        and query operations.
+        
+        TODO: add incremental update using last update timestamp, but for now just load everything
+        """
+        #
+        # First sync contacts
+        #
+        
+        self.activity_sets = self.load('activitysets', refresh)
+        self.contacts = self.load('contacts', refresh)
+        self.emails = self.load('emails', refresh)
+        self.events = self.load('events', refresh)
+        self.file_categories = self.load('filecategories', refresh)
+        self.leads = self.load('leads', refresh)
+        self.lead_sources = self.load('leadsources', refresh)
+        self.lead_statuses = self.load('leadstatuses', refresh)
+        self.notes = self.load('notes', refresh)
+        self.organisations = self.load('organisations')
+        self.opportunities = self.load('opportunities')
+        self.opportunity_categories = self.load('opportunitycategories', refresh)
+        self.opportunity_state_reasons = self.load('opportunitystatereasons', refresh)
+        self.pipelines = self.load('pipelines', refresh)
+        self.pipeline_stages = self.load('pipelinestages', refresh)
+        self.projects = self.load('projects')
+        self.project_categories = self.load('projectcategories', refresh)
+        self.relationships = self.load('relationships', refresh)
+        self.tasks = self.load('tasks', refresh)
+        self.task_categories = self.load('taskcategories', refresh)
+        self.teams = self.load('teams', refresh)
+        
+        return True
+        
     def update(self, object_type, object_graph, id = None, sub_type = None):
         """
         This is a general purpose write method that can be used to update (PUT)
@@ -1096,7 +1325,7 @@ class Insightly():
         f = open(filename, 'rb')
         value = f.read()
         # TODO: probably need to clean the filename so it does not have illegal characters
-        url = '/' + object_type + '/' + str(id) + '/image/' + filename
+        url = '/' + object_type + '/' + str(id) + '/image/' + os.path.basename(filename)
         if test:
             self.tests_run += 1
             try:
