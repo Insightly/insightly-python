@@ -3,11 +3,13 @@ Insightly For Python
 
 The Insightly Python SDK makes it super easy to integrate Insightly into your Python applications and web services, as easy as:
 
-  from insightly import Insightly
-  
-  i = Insightly()
-  
-  contacts = i.read('contacts', top=100, skip=100, filters={'city':'perth'})
+```python
+from insightly import Insightly
+
+i = Insightly()
+
+contacts = i.read('contacts', top=100, skip=100, filters={'city':'perth'})
+```
 
 The library takes care of authentication and low level communication, so you can focus on building your custom application or service.
 
@@ -18,11 +20,13 @@ NEW : OFFLINE OPERATION
 
 You can now use the Python SDK in offline mode, example below.
 
+```python
 i = Insightly(apikey='foo', offline=True, refresh=True)
 
 for contact in i.contacts:
 
   do_something_with(contact)
+```
   
 When running in offline mode, the client makes a copy of your system data in local memory and local disk. This will be helpful for people who are building data processing and reporting applications, or who need to do complex queries against their Insightly data. 
 
@@ -52,7 +56,9 @@ USAGE
 
 First, you'll need to instantiate the Insightly class, which you do with the following statement:
 
+```python
 i = Insightly(apikey='yourapikey',version='2.1|2.2',debug=True|False,offline=True|False,refresh=True|False)
+```
 
 Note, if you omit the apikey, it will look for it in a text file named apikey.txt in the working directory. If you omit the version number it will default to v2.2. Use the test mode to log success/fail events to the console and to testresults.txt
 
@@ -67,21 +73,27 @@ Use the read() method for these operations. It is invoked as follows:
 
 To get a list of currently supported endpoints:
 
+```python
 endpoints = i.endpoints()
+```
 
 To search for a list of records:
 
-  contacts = i.read('contacts',top=100,filters={'city':'perth'})
+```python
+contacts = i.read('contacts',top=100,filters={'city':'perth'})
 
-  emails = i.read('emails',top=100,filters={'email_from':'foo@bar.com'})
+emails = i.read('emails',top=100,filters={'email_from':'foo@bar.com'})
 
-  projects = i.read('projects',top=100,filters={'status':'in progress'})
+projects = i.read('projects',top=100,filters={'status':'in progress'})
+```
 
 To fetch an individual record:
 
-  contact = i.read('contacts',id=123456)
-  
-  opportunity = i.read('opportunities',id=123456)
+```python
+contact = i.read('contacts',id=123456)
+
+opportunity = i.read('opportunities',id=123456)
+```
 
 DELETING AN INSIGHTLY OBJECT
 ============================
@@ -91,18 +103,21 @@ DELETING AN INSIGHTLY OBJECT
 CREATING AN INSIGHTLY OBJECT
 ============================
 
-  lead = {'first_name':'foo','last_name':'bar'}
+```python
+lead = {'first_name':'foo','last_name':'bar'}
 
-  success = i.create('leads', lead)
-  
-  address = {'address_type':'home','city':'San Francisco','state':'CA','country':'United States'}
-  
-  success = i.create_child('contacts', contact_id, 'addresses', address)
+success = i.create('leads', lead)
+
+address = {'address_type':'home','city':'San Francisco','state':'CA','country':'United States'}
+
+success = i.create_child('contacts', contact_id, 'addresses', address)
+```
 
 UPDATING AN INSIGHTLY OBJECT
 ============================
 
-  lead['first_name'] = 'Foozle'
+```python
+lead['first_name'] = 'Foozle'
 
-  success = i.update('leads',lead)
-
+success = i.update('leads',lead)
+```
