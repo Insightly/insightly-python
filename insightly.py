@@ -33,6 +33,27 @@ def lowercase(text):
         lc = string.lower(text)
     return lc
 
+def stringreplace(text, value, replacement):
+    try:
+        new_text = text.replace(value, replacement)
+    except:
+        new_text = string.replace(text, value, replacement)
+    return new_text
+
+def stringcount(text, text2):
+    try:
+        text_count = text.count(text2)
+    except:
+        text_count = string.count(text, text2)
+    return text_count
+
+def stringsplit(text, splitter):
+    try:
+        parts = text.split(splitter)
+    except:
+        parts = string.split(text, splitter)
+    return parts
+
 def encode_query(text):
     qs = ''
     for t in text:
@@ -669,7 +690,7 @@ class Insightly():
             skip = 0
             top = 500
             results = list()
-            updated_after_utc = string.replace(updated_after_utc,' ','+')
+            updated_after_utc = stringreplace(updated_after_utc,' ','+')
             while not done:
                 if updated_after_utc != '':
                     records = self.search(object_type, 'updated_after_utc=' + updated_after_utc, top=top, skip=skip)
@@ -807,10 +828,10 @@ class Insightly():
                         querystring += '&$orderby=' + urllib.quote(orderby)
                 if type(filters) is list:
                     for f in filters:
-                        f = string.replace(f,' ','%20')
-                        f = string.replace(f,'=','%20eq%20')
-                        f = string.replace(f,'>','%20gt%20')
-                        f = string.replace(f,'<','%20lt%20')
+                        f = stringreplace(f,' ','%20')
+                        f = stringreplace(f,'=','%20eq%20')
+                        f = stringreplace(f,'>','%20gt%20')
+                        f = stringreplace(f,'<','%20lt%20')
                         if querystring == '':
                             querystring += '?$filter=' + f
                         else:
@@ -853,7 +874,7 @@ class Insightly():
         
         """
         if type(object_type) is str:
-            object_type = string.lower(object_type)
+            object_type = lowercase(object_type)
         else:
             raise Exception('parameter object_type must be a string')
         if type(filters) is tuple:
@@ -895,22 +916,23 @@ class Insightly():
                 parm = f[0]
                 operator = f[1]
                 value = f[2]
-                if string.lower(parm) == 'any':
+                
+                if lowercase(parm) == 'any':
                     field = str(d)
                 else:
                     field = d.get(parm, None)
                 if field is not None:
                     if operator == 'contains':
-                        if string.count(string.lower(field), string.lower(value)) > 0:
+                        if stringcount(lowercase(field), lowercase(value)) > 0:
                             matches +=1
                     elif operator == '=':
-                        if string.lower(field) == string.lower(value):
+                        if lowercase(field) == lowercase(value):
                             matches += 1
                     elif operator == '>':
-                        if string.lower(field) > string.lower(value):
+                        if lowercase(field) > lowercase(value):
                             matches += 1
                     elif operator == '<':
-                        if string.lower(field) > string.lower(value):
+                        if lowercase(field) > lowercase(value):
                             matches += 1
                     else:
                         pass
@@ -1040,11 +1062,11 @@ class Insightly():
         url = '/' + object_type + '?count_total=true'
         headers = self.generateRequest(url, 'GET', None, response='headers')
         for h in headers:
-            pv = string.split(h, ':')
+            pv = stringsplit(h, ':')
             if len(pv) > 1:
                 parm = pv[0]
                 value = pv[1]
-                if string.count(parm, 'Total-Count') > 0:
+                if stringcount(parm, 'Total-Count') > 0:
                     num_records = int(string.strip(value))
         if num_records > 0:
             skip = 0
@@ -1092,11 +1114,15 @@ class Insightly():
         url = '/' + object_type + '/search?top=' + str(top)
         if skip > 0:
             url += '&skip=' + str(skip)
-        if string.count(expression,'=') > 0:
-            parms = string.split(expression,'=')
+        if stringcount(expression,'=') > 0:
+            parms = stringsplit(expression,'=')
             if len(parms) == 2:
                 parm = parms[0]
                 parm = parm.encode('ascii','xmlcharrefreplace')
+                try:
+                    parm = parm.decode('ascii')
+                except:
+                    pass
                 value = encode_query(parms[1])
                 url += '&' + parm + '=' + value
         if test:
