@@ -97,8 +97,9 @@ opportunity = i.read('opportunities',id=123456)
 
 DELETING AN INSIGHTLY OBJECT
 ============================
-
-  success = i.delete('contacts',id=123456)
+```python
+success = i.delete('contacts',id=123456)
+```
 
 CREATING AN INSIGHTLY OBJECT
 ============================
